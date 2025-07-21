@@ -1,10 +1,43 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+
+// Base URL for the API
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+
+// API Response interface
+export interface ApiResponse<T = any> {
+  success: boolean
+  message: string
+  data: T
+}
+
+// User interfaces
+export interface User {
+  id: number
+  username: string
+  email: string
+  fullName: string
+  role: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface RegisterRequest {
+  username: string
+  email: string
+  password: string
+  fullName: string
+}
 
 class ApiService {
   private api: AxiosInstance
 
-  constructor(baseURL: string = 'http://localhost:3000/api') {
+  constructor(baseURL: string = BASE_URL) {
     this.api = axios.create({
       baseURL,
       timeout: 10000,
@@ -37,6 +70,7 @@ class ApiService {
         if (error.response?.status === 401) {
           // Handle unauthorized access
           localStorage.removeItem('token')
+          localStorage.removeItem('user')
           window.location.href = '/login'
         }
         return Promise.reject(error)
@@ -67,6 +101,20 @@ class ApiService {
     const response = await this.api.delete(url, config)
     return response.data
   }
+
+  // Auth API methods
+  async login(data: LoginRequest): Promise<ApiResponse<User>> {
+    return this.post('/auth/login', data)
+  }
+
+  async register(data: RegisterRequest): Promise<ApiResponse<User>> {
+    return this.post('/auth/register', data)
+  }
+
+  async logout(): Promise<ApiResponse> {
+    return this.post('/auth/logout')
+  }
 }
 
 export const apiService = new ApiService()
+export default apiService

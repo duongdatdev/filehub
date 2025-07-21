@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Backend",
+			"type": "shell",
+			"command": "./gradlew",
+			"args": [
+				"bootRun"
+			],
+			"group": "build",
+			"isBackground": true,
+			"options": {
+				"cwd": "${workspaceFolder}/filehub-back"
+			},
+			"problemMatcher": []
+		}
+	]
+}
