@@ -20,6 +20,8 @@ export interface User {
   role: string
   isActive: boolean
   createdAt: string
+  accessToken?: string
+  refreshToken?: string
 }
 
 export interface LoginRequest {

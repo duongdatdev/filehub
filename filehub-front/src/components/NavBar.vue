@@ -29,6 +29,16 @@
               About
             </router-link>
 
+            <!-- Admin link (only show for admin users) -->
+            <router-link 
+              v-if="isAdmin"
+              to="/admin/users" 
+              class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
+              :class="{ 'text-blue-600 bg-blue-50': $route.path.startsWith('/admin') }"
+            >
+              Admin
+            </router-link>
+
             <!-- User dropdown -->
             <div class="relative">
               <button
@@ -103,6 +113,10 @@ const userInitials = computed(() => {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+})
+
+const isAdmin = computed(() => {
+  return authStore.user?.role === 'ADMIN'
 })
 
 const handleLogout = async () => {

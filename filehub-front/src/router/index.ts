@@ -4,6 +4,7 @@ import HomePage from '@/views/HomePage.vue'
 import AboutPage from '@/views/AboutPage.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import RegisterPage from '@/views/RegisterPage.vue'
+import AdminUsersPage from '@/views/AdminUsersPage.vue'
 
 const routes = [
   {
@@ -29,6 +30,12 @@ const routes = [
     name: 'About',
     component: AboutPage,
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: AdminUsersPage,
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
@@ -38,7 +45,7 @@ export const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
 
   // Initialize auth on first route
@@ -49,6 +56,9 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next('/')
+  } else if (to.meta.requiresAdmin && authStore.user?.role !== 'ADMIN') {
+    // Redirect non-admin users trying to access admin routes
     next('/')
   } else {
     next()

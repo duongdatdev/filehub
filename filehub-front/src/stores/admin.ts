@@ -2,29 +2,6 @@ import { defineStore } from 'pinia'
 import type { User } from '@/services/api'
 import { adminApi, type AdminUserFilterRequest, type PageResponse } from '@/services/adminApi'
 
-export interface AdminUserFilterRequest {
-  username?: string
-  email?: string
-  fullName?: string
-  role?: string
-  isActive?: boolean
-  page?: number
-  size?: number
-  sortBy?: string
-  sortDir?: 'asc' | 'desc'
-}
-
-export interface PageResponse<T> {
-  content: T[]
-  totalElements: number
-  totalPages: number
-  size: number
-  number: number
-  first: boolean
-  last: boolean
-  numberOfElements: number
-}
-
 export interface AdminState {
   users: User[]
   totalElements: number
@@ -79,7 +56,7 @@ export const useAdminStore = defineStore('admin', {
           this.filters = { ...this.filters, ...filters }
         }
 
-        const response = await this.adminApi.getUsers(this.filters)
+        const response = await adminApi.getUsers(this.filters)
         
         if (response.success) {
           const pageData = response.data as PageResponse<User>
@@ -104,7 +81,7 @@ export const useAdminStore = defineStore('admin', {
       this.error = null
 
       try {
-        const response = await this.adminApi.getUserById(id)
+        const response = await adminApi.getUserById(id)
         
         if (response.success) {
           return response.data as User
@@ -125,7 +102,7 @@ export const useAdminStore = defineStore('admin', {
       this.error = null
 
       try {
-        const response = await this.adminApi.updateUserStatus(id, isActive)
+        const response = await adminApi.updateUserStatus(id, isActive)
         
         if (response.success) {
           // Update the user in the local state
@@ -184,7 +161,3 @@ export const useAdminStore = defineStore('admin', {
     }
   }
 })
-
-// Import admin API methods (we'll add these to the API service)
-import { adminApi } from '@/services/adminApi'
-useAdminStore.prototype.adminApi = adminApi

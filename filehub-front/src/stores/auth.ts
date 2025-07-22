@@ -23,11 +23,13 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (response.success && response.data) {
         user.value = response.data
-        // In a real app, you'd get the token from the response
-        token.value = 'dummy-token'
+        // Use the actual JWT token from the response
+        token.value = response.data.accessToken || null
         
         localStorage.setItem('user', JSON.stringify(response.data))
-        localStorage.setItem('token', token.value)
+        if (token.value) {
+          localStorage.setItem('token', token.value)
+        }
         
         return true
       } else {
@@ -51,10 +53,13 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (response.success && response.data) {
         user.value = response.data
-        token.value = 'dummy-token'
+        // Use the actual JWT token from the response
+        token.value = response.data.accessToken || null
         
         localStorage.setItem('user', JSON.stringify(response.data))
-        localStorage.setItem('token', token.value)
+        if (token.value) {
+          localStorage.setItem('token', token.value)
+        }
         
         return true
       } else {
