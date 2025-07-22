@@ -1,15 +1,6 @@
 -- Database Schema tối ưu cho Spring Boot + Vue với MySQL 8.0+
 -- Charset: utf8mb4, Collation: utf8mb4_unicode_ci
 
--- Bảng vai trò (roles)
-CREATE TABLE roles (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(50) UNIQUE NOT NULL, -- 'USER', 'ADMIN'
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Bảng người dùng (users)
 CREATE TABLE users (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -17,15 +8,11 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL, -- BCrypt hash từ Spring Security
     full_name VARCHAR(255),
-    role_id BIGINT NOT NULL,
-    enabled BOOLEAN DEFAULT TRUE, -- Spring Security naming convention
-    account_non_expired BOOLEAN DEFAULT TRUE,
-    account_non_locked BOOLEAN DEFAULT TRUE,
-    credentials_non_expired BOOLEAN DEFAULT TRUE,
+    role VARCHAR(20) NOT NULL DEFAULT 'USER', -- 'USER', 'ADMIN' - Enum value stored as string
+    is_active BOOLEAN DEFAULT TRUE, -- User active status for admin management
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (role_id) REFERENCES roles(id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng danh mục file (file_categories)
@@ -147,7 +134,8 @@ CREATE TABLE notifications (
 -- Indexes để tối ưu performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_role_id ON users(role_id);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE INDEX idx_files_user_id ON files(user_id);
 CREATE INDEX idx_files_category_id ON files(category_id);
 CREATE INDEX idx_files_hash ON files(file_hash);
@@ -170,9 +158,7 @@ ALTER TABLE files ADD INDEX idx_files_tags_functional ((CAST(tags AS CHAR(255) A
 ALTER TABLE ai_suggestions ADD INDEX idx_ai_suggestions_tags_functional ((CAST(suggested_tags AS CHAR(255) ARRAY)));
 
 -- Insert dữ liệu mặc định
-INSERT INTO roles (name, description) VALUES 
-('ADMIN', 'Quản trị viên hệ thống với quyền truy cập đầy đủ'),
-('USER', 'Người dùng thông thường');
+-- Note: roles table removed - using enum directly in users table
 
 INSERT INTO file_categories (name, description, color, icon, display_order) VALUES 
 ('Documents', 'Tài liệu văn bản (PDF, DOC, TXT)', '#2196F3', 'document', 1),
@@ -192,3 +178,9 @@ INSERT INTO system_configs (config_key, config_value, data_type, description, is
 ('storage.path', '/app/uploads', 'STRING', 'Đường dẫn lưu trữ file', false),
 ('app.name', 'File Management System', 'STRING', 'Tên ứng dụng', true),
 ('app.version', '1.0.0', 'STRING', 'Phiên bản ứng dụng', true);
+
+-- Insert sample admin user for testing (password: admin123)
+INSERT INTO users (username, email, password, full_name, role, is_active, created_at, updated_at) VALUES 
+('admin', 'admin@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'System Administrator', 'ADMIN', true, NOW(), NOW()),
+('user1', 'user1@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 1', 'USER', true, NOW(), NOW()),
+('user2', 'user2@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 2', 'USER', false, NOW(), NOW());
