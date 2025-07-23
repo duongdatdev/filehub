@@ -5,6 +5,7 @@ import AboutPage from '@/views/AboutPage.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import RegisterPage from '@/views/RegisterPage.vue'
 import AdminUsersPage from '@/views/AdminUsersPage.vue'
+import UITestPage from '@/views/UITestPage.vue'
 
 const routes = [
   {
@@ -36,6 +37,12 @@ const routes = [
     name: 'AdminUsers',
     component: AdminUsersPage,
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/ui-test',
+    name: 'UITest',
+    component: UITestPage,
+    meta: { requiresAuth: false }
   }
 ]
 

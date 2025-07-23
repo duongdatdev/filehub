@@ -44,6 +44,15 @@
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
+            <th scope="col" class="px-6 py-3 text-left">
+              <input
+                type="checkbox"
+                :checked="allCurrentPageSelected"
+                :indeterminate="someCurrentPageSelected"
+                @change="toggleSelectAllCurrentPage"
+                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+            </th>
             <th
               scope="col"
               class="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -121,6 +130,14 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="user in users" :key="user.id" class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <input
+                type="checkbox"
+                :checked="isUserSelected(user.id)"
+                @change="toggleUserSelection(user.id)"
+                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+            </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
               {{ user.id }}
             </td>
@@ -218,6 +235,8 @@ const users = computed(() => adminStore.users)
 const hasUsers = computed(() => adminStore.hasUsers)
 const currentSort = computed(() => adminStore.filters.sortBy)
 const currentSortDir = computed(() => adminStore.filters.sortDir)
+const allCurrentPageSelected = computed(() => adminStore.allCurrentPageSelected)
+const someCurrentPageSelected = computed(() => adminStore.someCurrentPageSelected)
 
 // Methods
 const getSortDirection = (field: string): 'asc' | 'desc' | null => {
@@ -272,5 +291,17 @@ const formatDate = (dateString: string): string => {
 const retryFetch = () => {
   adminStore.clearError()
   adminStore.fetchUsers()
+}
+
+const toggleSelectAllCurrentPage = () => {
+  adminStore.toggleSelectAllCurrentPage()
+}
+
+const toggleUserSelection = (userId: number) => {
+  adminStore.toggleUserSelection(userId)
+}
+
+const isUserSelected = (userId: number) => {
+  return adminStore.selectedUserIds.has(userId)
 }
 </script>

@@ -1,69 +1,128 @@
 <template>
-  <nav class="bg-white shadow-lg">
-    <div class="max-w-7xl mx-auto px-4">
+  <nav class="bg-white shadow-lg border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
+        <!-- Left side - Logo and main nav -->
         <div class="flex items-center">
-          <router-link 
-            to="/" 
-            class="flex-shrink-0 flex items-center"
-          >
-            <h1 class="text-xl font-bold text-gray-800">FileHub</h1>
+          <!-- Logo -->
+          <router-link to="/" class="flex items-center">
+            <div class="flex-shrink-0">
+              <h1 class="text-2xl font-bold text-blue-600">FileHub</h1>
+            </div>
           </router-link>
-        </div>
-        
-        <div class="flex items-center space-x-4">
-          <!-- Navigation links (only show if authenticated) -->
-          <template v-if="authStore.isAuthenticated">
-            <router-link 
-              to="/" 
-              class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
-              :class="{ 'text-blue-600 bg-blue-50': $route.path === '/' }"
+
+          <!-- Main Navigation -->
+          <div class="hidden md:ml-8 md:flex md:space-x-8">
+            <router-link
+              to="/"
+              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+              :class="isActiveRoute('/') 
+                ? 'border-blue-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             >
-              Home
+              <FolderIcon class="w-4 h-4 mr-2" />
+              Dashboard
             </router-link>
-            <router-link 
-              to="/about" 
-              class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
-              :class="{ 'text-blue-600 bg-blue-50': $route.path === '/about' }"
+
+            <router-link
+              to="/about"
+              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+              :class="isActiveRoute('/about') 
+                ? 'border-blue-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             >
+              <InfoIcon class="w-4 h-4 mr-2" />
               About
             </router-link>
 
-            <!-- Admin link (only show for admin users) -->
-            <router-link 
+            <!-- Admin Navigation -->
+            <router-link
               v-if="isAdmin"
-              to="/admin/users" 
-              class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
-              :class="{ 'text-blue-600 bg-blue-50': $route.path.startsWith('/admin') }"
+              to="/admin/users"
+              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+              :class="isActiveRoute('/admin') 
+                ? 'border-blue-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             >
-              Admin
+              <UserIcon class="w-4 h-4 mr-2" />
+              Admin Panel
             </router-link>
+          </div>
+        </div>
 
-            <!-- User dropdown -->
-            <div class="relative">
+        <!-- Right side - User menu and bulk actions -->
+        <div class="flex items-center space-x-4">
+          <!-- Bulk Actions (shown on admin pages) -->
+          <div v-if="showBulkActions" class="hidden md:flex items-center space-x-2">
+            <div class="flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-md">
+              <input
+                id="selectAll"
+                type="checkbox"
+                :checked="allSelected"
+                :indeterminate="someSelected && !allSelected"
+                @change="toggleSelectAll"
+                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label for="selectAll" class="text-sm text-gray-700">
+                {{ selectedCount > 0 ? `${selectedCount} selected` : 'Select All' }}
+              </label>
+            </div>
+            
+            <div v-if="selectedCount > 0" class="flex items-center space-x-2">
               <button
-                @click="showUserMenu = !showUserMenu"
-                class="flex items-center space-x-2 text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
+                @click="bulkActivate"
+                class="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200 transition-colors"
               >
-                <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center">
-                  {{ userInitials }}
-                </div>
-                <span>{{ authStore.user?.fullName }}</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                Activate ({{ selectedCount }})
               </button>
-
-              <!-- Dropdown menu -->
-              <div
-                v-if="showUserMenu"
-                v-click-outside="closeUserMenu"
-                class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
+              <button
+                @click="bulkDeactivate"
+                class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors"
               >
-                <div class="px-4 py-2 text-sm text-gray-700 border-b">
-                  <div class="font-medium">{{ authStore.user?.fullName }}</div>
-                  <div class="text-gray-500">{{ authStore.user?.email }}</div>
+                Deactivate ({{ selectedCount }})
+              </button>
+            </div>
+          </div>
+
+          <!-- User Menu -->
+          <div class="relative" ref="userMenuRef">
+            <button
+              @click="toggleUserMenu"
+              class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <span class="text-sm font-medium text-blue-600">
+                  {{ userInitials }}
+                </span>
+              </div>
+              <span class="hidden md:ml-2 md:block text-sm font-medium text-gray-700">
+                {{ user?.username }}
+              </span>
+              <svg class="hidden md:ml-1 md:block h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              v-if="showUserMenu"
+              class="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+            >
+              <div class="py-1">
+                <div class="px-4 py-2 border-b border-gray-100">
+                  <p class="text-sm font-medium text-gray-900">{{ user?.fullName }}</p>
+                  <p class="text-sm text-gray-500">{{ user?.email }}</p>
+                  <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mt-1">
+                    {{ user?.role }}
+                  </span>
                 </div>
+                <router-link
+                  to="/profile"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  @click="closeUserMenu"
+                >
+                  Profile Settings
+                </router-link>
                 <button
                   @click="handleLogout"
                   class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -72,23 +131,58 @@
                 </button>
               </div>
             </div>
-          </template>
+          </div>
 
-          <!-- Login/Register links (only show if not authenticated) -->
-          <template v-else>
-            <router-link 
-              to="/login" 
-              class="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition"
+          <!-- Mobile menu button -->
+          <div class="md:hidden">
+            <button
+              @click="toggleMobileMenu"
+              type="button"
+              class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
             >
-              Sign In
-            </router-link>
-            <router-link 
-              to="/register" 
-              class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-md text-sm font-medium transition"
-            >
-              Sign Up
-            </router-link>
-          </template>
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path v-if="!showMobileMenu" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile menu -->
+      <div v-if="showMobileMenu" class="md:hidden">
+        <div class="pt-2 pb-3 space-y-1 border-t border-gray-200">
+          <router-link
+            to="/"
+            class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+            :class="isActiveRoute('/') 
+              ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+              : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            @click="closeMobileMenu"
+          >
+            Dashboard
+          </router-link>
+          <router-link
+            to="/about"
+            class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+            :class="isActiveRoute('/about') 
+              ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+              : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            @click="closeMobileMenu"
+          >
+            About
+          </router-link>
+          <router-link
+            v-if="isAdmin"
+            to="/admin/users"
+            class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+            :class="isActiveRoute('/admin') 
+              ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+              : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+            @click="closeMobileMenu"
+          >
+            Admin Panel
+          </router-link>
         </div>
       </div>
     </div>
@@ -96,51 +190,117 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAdminStore } from '@/stores/admin'
+import FolderIcon from '@/components/icons/FolderIcon.vue'
+import InfoIcon from '@/components/icons/InfoIcon.vue'
+import UserIcon from '@/components/icons/UserIcon.vue'
+import MenuIcon from '@/components/icons/MenuIcon.vue'
+import CloseIcon from '@/components/icons/CloseIcon.vue'
 
-const $route = useRoute()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const adminStore = useAdminStore()
+
+// State
 const showUserMenu = ref(false)
+const showMobileMenu = ref(false)
+const userMenuRef = ref<HTMLElement>()
 
+// Computed
+const user = computed(() => authStore.user)
+const isAdmin = computed(() => authStore.isAdmin)
 const userInitials = computed(() => {
-  if (!authStore.user?.fullName) return 'U'
-  return authStore.user.fullName
-    .split(' ')
-    .map(name => name[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+  if (!user.value?.username) return 'U'
+  return user.value.username.charAt(0).toUpperCase()
 })
 
-const isAdmin = computed(() => {
-  return authStore.user?.role === 'ADMIN'
+// Navigation helpers
+const isActiveRoute = (path: string): boolean => {
+  if (path === '/') {
+    return route.path === '/'
+  }
+  return route.path.startsWith(path)
+}
+
+// Bulk actions (for admin pages)
+const showBulkActions = computed(() => {
+  return isAdmin.value && route.path.startsWith('/admin')
 })
 
-const handleLogout = async () => {
-  await authStore.logout()
-  showUserMenu.value = false
-  router.push('/login')
+// Selection state from admin store
+const selectedCount = computed(() => adminStore.selectedCount)
+const allSelected = computed(() => adminStore.allCurrentPageSelected)
+const someSelected = computed(() => adminStore.someCurrentPageSelected)
+
+// Methods
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+  showMobileMenu.value = false
 }
 
 const closeUserMenu = () => {
   showUserMenu.value = false
 }
 
-// Click outside directive (you can implement this as a custom directive)
-const vClickOutside = {
-  mounted(el: any, binding: any) {
-    el.clickOutsideEvent = (event: Event) => {
-      if (!(el == event.target || el.contains(event.target))) {
-        binding.value()
-      }
-    }
-    document.addEventListener("click", el.clickOutsideEvent)
-  },
-  unmounted(el: any) {
-    document.removeEventListener("click", el.clickOutsideEvent)
+const toggleMobileMenu = () => {
+  showMobileMenu.value = !showMobileMenu.value
+  showUserMenu.value = false
+}
+
+const closeMobileMenu = () => {
+  showMobileMenu.value = false
+}
+
+const handleLogout = async () => {
+  await authStore.logout()
+  router.push('/login')
+  closeUserMenu()
+}
+
+// Bulk actions methods
+const toggleSelectAll = () => {
+  adminStore.toggleSelectAllCurrentPage()
+}
+
+const bulkActivate = async () => {
+  await adminStore.bulkUpdateUserStatus(true)
+}
+
+const bulkDeactivate = async () => {
+  await adminStore.bulkUpdateUserStatus(false)
+}
+
+// Click outside to close menus
+const handleClickOutside = (event: Event) => {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+    showUserMenu.value = false
   }
 }
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Watch route changes to close mobile menu
+router.afterEach(() => {
+  showMobileMenu.value = false
+  showUserMenu.value = false
+})
 </script>
+
+<style scoped>
+/* Custom styles for indeterminate checkbox */
+input[type="checkbox"]:indeterminate {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23fff' viewBox='0 0 16 16'%3E%3Cpath d='M5 8h6'/%3E%3C/svg%3E");
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+</style>

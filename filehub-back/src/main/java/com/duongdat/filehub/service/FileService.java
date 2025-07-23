@@ -8,6 +8,7 @@ import com.duongdat.filehub.repository.FileRepository;
 import com.duongdat.filehub.repository.FileCategoryRepository;
 import com.duongdat.filehub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FileService {
     
     private final FileRepository fileRepository;
@@ -38,6 +40,12 @@ public class FileService {
     
     @Value("${file.upload.directory:uploads}")
     private String uploadDirectory;
+    
+    @Value("${file.storage.primary:google-drive}")
+    private String primaryStorage;
+    
+    @Value("${file.storage.fallback:local}")
+    private String fallbackStorage;
     
     @Value("${file.max.size:104857600}") // 100MB default
     private long maxFileSize;
@@ -75,25 +83,47 @@ public class FileService {
         file.setTags(request.getTags());
         file.setVisibility(request.getVisibility());
         
-        // Store file locally first
-        Path uploadPath = Paths.get(uploadDirectory);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
+        // Primary storage: Upload to Google Drive first
+        String driveFileId = null;
+        boolean driveUploadSuccess = false;
+        
+        if ("google-drive".equals(primaryStorage)) {
+            try {
+                driveFileId = googleDriveService.uploadFile(multipartFile, storedFilename);
+                if (driveFileId != null) {
+                    file.setDriveFileId(driveFileId);
+                    driveUploadSuccess = true;
+                    log.info("File uploaded to Google Drive (primary): {}", driveFileId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to upload to Google Drive (primary), falling back to local storage: {}", e.getMessage());
+            }
         }
         
-        Path filePath = uploadPath.resolve(storedFilename);
-        Files.copy(multipartFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        file.setFilePath(filePath.toString());
-        
-        // Try to upload to Google Drive
-        try {
-            String driveFileId = googleDriveService.uploadFile(multipartFile, storedFilename);
-            if (driveFileId != null) {
-                file.setDriveFileId(driveFileId);
+        // Fallback storage: Store locally if Google Drive fails or as backup
+        if (!driveUploadSuccess || "local".equals(fallbackStorage)) {
+            try {
+                Path uploadPath = Paths.get(uploadDirectory);
+                if (!Files.exists(uploadPath)) {
+                    Files.createDirectories(uploadPath);
+                }
+                
+                Path filePath = uploadPath.resolve(storedFilename);
+                Files.copy(multipartFile.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+                file.setFilePath(filePath.toString());
+                log.info("File stored locally: {}", filePath);
+                
+                // If primary storage failed, mark as local-only
+                if (!driveUploadSuccess) {
+                    log.info("File stored in fallback storage (local): {}", filePath);
+                }
+            } catch (Exception e) {
+                if (!driveUploadSuccess) {
+                    // Both storages failed
+                    throw new IOException("Failed to store file in both primary and fallback storage: " + e.getMessage());
+                }
+                log.warn("Failed to store in fallback storage, but primary storage succeeded: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            // Log error but continue - file is stored locally
-            System.err.println("Failed to upload to Google Drive: " + e.getMessage());
         }
         
         // Save to database
@@ -138,17 +168,35 @@ public class FileService {
         Optional<File> fileOpt = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId);
         if (fileOpt.isPresent()) {
             File file = fileOpt.get();
+            
+            // Mark as deleted in database
             file.setIsDeleted(true);
             file.setDeletedAt(LocalDateTime.now());
             fileRepository.save(file);
             
-            // Try to delete from Google Drive
-            try {
-                if (file.getDriveFileId() != null) {
-                    googleDriveService.deleteFile(file.getDriveFileId());
+            // Delete from primary storage (Google Drive)
+            if ("google-drive".equals(primaryStorage) && file.getDriveFileId() != null) {
+                try {
+                    boolean driveDeleted = googleDriveService.deleteFile(file.getDriveFileId());
+                    if (driveDeleted) {
+                        log.info("File deleted from Google Drive (primary): {}", file.getDriveFileId());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete from Google Drive (primary): {}", e.getMessage());
                 }
-            } catch (Exception e) {
-                System.err.println("Failed to delete from Google Drive: " + e.getMessage());
+            }
+            
+            // Delete from fallback storage (local) if exists
+            if (file.getFilePath() != null) {
+                try {
+                    Path filePath = Paths.get(file.getFilePath());
+                    if (Files.exists(filePath)) {
+                        Files.delete(filePath);
+                        log.info("File deleted from local storage (fallback): {}", filePath);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to delete from local storage: {}", e.getMessage());
+                }
             }
             
             return true;
@@ -163,31 +211,39 @@ public class FileService {
         File file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
                 .orElseThrow(() -> new RuntimeException("File not found"));
         
-        // Try to download from Google Drive first
-        try {
-            if (file.getDriveFileId() != null) {
+        // Primary storage: Try to download from Google Drive first
+        if ("google-drive".equals(primaryStorage) && file.getDriveFileId() != null) {
+            try {
                 byte[] driveContent = googleDriveService.downloadFile(file.getDriveFileId());
                 if (driveContent != null) {
                     // Increment download count
                     file.setDownloadCount(file.getDownloadCount() + 1);
                     fileRepository.save(file);
+                    log.info("File downloaded from Google Drive (primary): {}", file.getDriveFileId());
                     return driveContent;
                 }
+            } catch (Exception e) {
+                log.warn("Failed to download from Google Drive (primary), trying fallback storage: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            System.err.println("Failed to download from Google Drive, trying local storage: " + e.getMessage());
         }
         
-        // Fallback to local file
-        Path filePath = Paths.get(file.getFilePath());
-        if (Files.exists(filePath)) {
-            // Increment download count
-            file.setDownloadCount(file.getDownloadCount() + 1);
-            fileRepository.save(file);
-            return Files.readAllBytes(filePath);
+        // Fallback storage: Try local file
+        if (file.getFilePath() != null) {
+            try {
+                Path filePath = Paths.get(file.getFilePath());
+                if (Files.exists(filePath)) {
+                    // Increment download count
+                    file.setDownloadCount(file.getDownloadCount() + 1);
+                    fileRepository.save(file);
+                    log.info("File downloaded from local storage (fallback): {}", filePath);
+                    return Files.readAllBytes(filePath);
+                }
+            } catch (Exception e) {
+                log.error("Failed to download from local storage: {}", e.getMessage());
+            }
         }
         
-        throw new RuntimeException("File not found in storage");
+        throw new RuntimeException("File not found in any storage location");
     }
     
     private void validateFile(MultipartFile file) {

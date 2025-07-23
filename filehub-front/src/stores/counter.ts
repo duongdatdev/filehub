@@ -12,5 +12,9 @@ export const useCounterStore = defineStore('counter', () => {
     count.value--
   }
   
-  return { count, increment, decrement }
+  function reset() {
+    count.value = 0
+  }
+  
+  return { count, increment, decrement, reset }
 })

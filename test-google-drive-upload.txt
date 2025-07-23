@@ -1,0 +1,15 @@
+This is a test file for Google Drive primary storage implementation.
+
+File created at: 2025-07-23
+Purpose: Testing the new upload flow where Google Drive is the primary storage and local is fallback.
+
+Content details:
+- This file will be uploaded via the FileHub API
+- Should be stored in Google Drive simulation first
+- If Google Drive fails, should fallback to local storage
+- The system should log detailed information about the storage process
+
+Test data: 
+- User: admin
+- File type: text/plain
+- Expected behavior: Primary storage to Google Drive simulation

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 
 // Base URL for the API
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
