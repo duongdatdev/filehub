@@ -1,11 +1,13 @@
 package com.duongdat.filehub.controller;
 
 import com.duongdat.filehub.dto.request.AdminUserFilterRequest;
+import com.duongdat.filehub.dto.request.UpdateUserStatusRequest;
 import com.duongdat.filehub.dto.response.ApiResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.dto.response.UserResponse;
 import com.duongdat.filehub.entity.Role;
 import com.duongdat.filehub.service.AdminService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,9 +58,9 @@ public class AdminController {
     @PatchMapping("/users/{id}/status")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserStatus(
             @PathVariable Long id, 
-            @RequestParam boolean isActive) {
+            @Valid @RequestBody UpdateUserStatusRequest request) {
         try {
-            UserResponse user = adminService.updateUserStatus(id, isActive);
+            UserResponse user = adminService.updateUserStatus(id, request.getIsActive());
             return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

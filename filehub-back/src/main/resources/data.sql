@@ -1,0 +1,9 @@
+-- Temporarily disabled - will use DataInitializer component instead
+-- INSERT INTO file_categories (name, description, color, icon, display_order, is_active, created_at, updated_at) VALUES 
+-- ('Documents', 'Text documents and PDFs', '#2196F3', 'document', 1, true, NOW(), NOW()),
+-- ('Images', 'Photos and graphics', '#4CAF50', 'image', 2, true, NOW(), NOW()),
+-- ('Videos', 'Video files and multimedia', '#FF9800', 'video', 3, true, NOW(), NOW()),
+-- ('Audio', 'Music and audio files', '#9C27B0', 'audio', 4, true, NOW(), NOW()),
+-- ('Archives', 'Compressed files and archives', '#607D8B', 'archive', 5, true, NOW(), NOW()),
+-- ('Code', 'Source code and scripts', '#FF5722', 'code', 6, true, NOW(), NOW()),
+-- ('Others', 'Other file types', '#9E9E9E', 'file', 7, true, NOW(), NOW());

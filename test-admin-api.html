@@ -217,14 +217,16 @@
             }
             
             const userId = document.getElementById('userId').value;
-            const isActive = document.getElementById('newStatus').value;
+            const isActive = document.getElementById('newStatus').value === 'true';
             
             try {
-                const response = await fetch(`${API_BASE}/admin/users/${userId}/status?isActive=${isActive}`, {
+                const response = await fetch(`${API_BASE}/admin/users/${userId}/status`, {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isActive })
                 });
                 
                 const result = await response.json();

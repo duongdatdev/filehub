@@ -29,6 +29,11 @@ public class SecurityUtil {
         return getCurrentUsername()
                 .flatMap(userRepository::findByUsername);
     }
+    
+    public Optional<Long> getCurrentUserId() {
+        return getCurrentUser()
+                .map(User::getId);
+    }
 
     public boolean isAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

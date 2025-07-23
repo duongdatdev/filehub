@@ -56,8 +56,13 @@ GET http://localhost:8080/api/admin/users/1
 Authorization: Bearer <ACCESS_TOKEN>
 
 ## 5. Update user status
-PATCH http://localhost:8080/api/admin/users/2/status?isActive=false
+PATCH http://localhost:8080/api/admin/users/2/status
+Content-Type: application/json
 Authorization: Bearer <ACCESS_TOKEN>
+
+{
+  "isActive": false
+}
 
 ## Test Commands (using curl)
 
@@ -88,6 +93,8 @@ curl -X GET http://localhost:8080/api/admin/users/1 \
 
 ### 5. Update user status
 ```bash
-curl -X PATCH "http://localhost:8080/api/admin/users/2/status?isActive=false" \
-  -H "Authorization: Bearer <TOKEN>"
+curl -X PATCH "http://localhost:8080/api/admin/users/2/status" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"isActive": false}'
 ```
