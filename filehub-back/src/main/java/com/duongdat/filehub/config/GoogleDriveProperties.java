@@ -53,4 +53,15 @@ public class GoogleDriveProperties {
     public void setFolderName(String folderName) {
         this.folderName = folderName;
     }
+    
+    // Additional property for explicit folder ID (like in your original code)
+    private String folderId = "1eW70gnMcvPmJJzaPVtSg3CjUSZeK2x21";
+    
+    public String getFolderId() {
+        return folderId;
+    }
+    
+    public void setFolderId(String folderId) {
+        this.folderId = folderId;
+    }
 }

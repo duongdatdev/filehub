@@ -1,36 +1,42 @@
 package com.duongdat.filehub.service.impl;
 
 import com.duongdat.filehub.service.GoogleDriveService;
+import com.duongdat.filehub.dto.response.GoogleDriveUploadResponse;
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
+import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
-import com.google.auth.googleapis.GoogleCredentials;
-import com.google.auth.http.HttpCredentialsAdapter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.PostConstruct;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
-import java.util.List;
 
-@Service
+@Service("googleDriveReal")
+@Primary
+@ConditionalOnProperty(name = "google.drive.use.real", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class GoogleDriveServiceRealImpl implements GoogleDriveService {
@@ -38,8 +44,11 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     @Value("${google.drive.enabled:false}")
     private boolean driveEnabled;
     
-    @Value("${google.drive.service.account.key.path:src/main/resources/google-drive-service-account.json}")
-    private String serviceAccountKeyPath;
+    @Value("${google.drive.oauth2.client.secrets.path:src/main/resources/credentials.json}")
+    private String clientSecretsPath;
+    
+    @Value("${google.drive.oauth2.tokens.directory:tokens}")
+    private String tokensDirectoryPath;
     
     @Value("${google.drive.application.name:FileHub}")
     private String applicationName;
@@ -57,6 +66,10 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     private Drive driveService;
     private String rootFolderId;
     private String driveStorageDirectory; // For simulation fallback
+    private Credential credential; // Store OAuth2 credential for reuse
+    
+    @Autowired(required = false)
+    private Drive configuredDriveService; // Injected from configuration if available
     
     @PostConstruct
     public void initializeDriveService() {
@@ -74,32 +87,60 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     
     private void initializeRealGoogleDrive() {
         try {
-            log.info("Initializing real Google Drive service...");
+            log.info("Initializing real Google Drive service with OAuth2...");
             
-            // Load credentials from service account key file
-            GoogleCredentials credentials = GoogleCredentials
-                    .fromStream(new FileInputStream(serviceAccountKeyPath))
-                    .createScoped(Collections.singletonList(DriveScopes.DRIVE));
-            
-            // Build Drive service
-            HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-            
-            driveService = new Drive.Builder(httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
-                    .setApplicationName(applicationName)
-                    .build();
+            // Use configured Drive service if available, otherwise create our own
+            if (configuredDriveService != null) {
+                log.info("Using pre-configured Drive service from OAuth2 configuration");
+                driveService = configuredDriveService;
+            } else {
+                log.info("Creating Drive service with inline OAuth2 flow");
+                // Get OAuth2 credential
+                credential = getOAuth2Credential();
+                
+                // Build Drive service
+                HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+                JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+                
+                driveService = new Drive.Builder(httpTransport, jsonFactory, credential)
+                        .setApplicationName(applicationName)
+                        .build();
+            }
             
             // Create or find the root folder
-            rootFolderId = createOrFindFolder(folderName, null);
+            rootFolderId = "1nnUw8er5hTOJRdc3WIsGPT9QXJlk0d-L";
             
-            log.info("Real Google Drive service initialized successfully. Root folder ID: {}", rootFolderId);
+            log.info("Real Google Drive service initialized successfully with OAuth2. Root folder ID: {}", rootFolderId);
             
         } catch (Exception e) {
-            log.error("Failed to initialize real Google Drive service: {}", e.getMessage(), e);
+            log.error("Failed to initialize real Google Drive service with OAuth2: {}", e.getMessage(), e);
             log.warn("Falling back to Google Drive simulation...");
             useRealGoogleDrive = false;
             initializeSimulation();
         }
+    }
+    
+    /**
+     * Get OAuth2 credential for Google Drive API access
+     */
+    private Credential getOAuth2Credential() throws Exception {
+        // Load client secrets from OAuth2 credentials file
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
+                GsonFactory.getDefaultInstance(),
+                new FileReader(clientSecretsPath));
+        
+        // Build flow and trigger user authorization request
+        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+        
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+                httpTransport, jsonFactory, clientSecrets, Collections.singletonList(DriveScopes.DRIVE))
+                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(tokensDirectoryPath)))
+                .setAccessType("offline")
+                .build();
+        
+        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
     
     private void initializeSimulation() {
@@ -350,32 +391,97 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
             throw new Exception("Google Drive simulation folder creation failed: " + e.getMessage());
         }
     }
-    
-    private String createOrFindFolder(String folderName, String parentFolderId) throws IOException {
-        // Search for existing folder
-        String query = "name='" + folderName + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-        if (parentFolderId != null) {
-            query += " and '" + parentFolderId + "' in parents";
-        }
-        
-        FileList result = driveService.files().list()
-                .setQ(query)
-                .setSpaces("drive")
-                .setFields("files(id, name)")
-                .execute();
-        
-        List<File> folders = result.getFiles();
-        if (!folders.isEmpty()) {
-            String folderId = folders.get(0).getId();
-            log.info("Found existing folder: {} -> {}", folderName, folderId);
-            return folderId;
-        }
-        
-        // Create new folder if not found
+
+    /**
+     * Upload file to Google Drive and return response with URL
+     * This method is used by the GoogleDriveController
+     */
+    public GoogleDriveUploadResponse uploadFileToDrive(java.io.File file) throws Exception {
+        GoogleDriveUploadResponse res = new GoogleDriveUploadResponse();
+
         try {
-            return createFolderInRealGoogleDrive(folderName, parentFolderId);
+            // Use the configured folder ID or rootFolderId
+            Drive drive = createRealDriveService();
+            
+            com.google.api.services.drive.model.File fileMetaData = new com.google.api.services.drive.model.File();
+            fileMetaData.setName(file.getName());
+            fileMetaData.setParents(Collections.singletonList(rootFolderId != null ? rootFolderId : "1nnUw8er5hTOJRdc3WIsGPT9QXJlk0d-L"));
+            
+            // Determine content type based on file extension
+            String contentType = determineContentType(file.getName());
+            FileContent mediaContent = new FileContent(contentType, file);
+            
+            com.google.api.services.drive.model.File uploadedFile = drive.files().create(fileMetaData, mediaContent)
+                    .setFields("id").execute();
+                    
+            String fileUrl = "https://drive.google.com/uc?export=view&id=" + uploadedFile.getId();
+            log.info("FILE URL: {}", fileUrl);
+            
+            // Clean up the temporary file
+            file.delete();
+            
+            res.setStatus(200);
+            res.setMessage("File Successfully Uploaded To Drive");
+            res.setUrl(fileUrl);
+            res.setFileId(uploadedFile.getId());
+            
         } catch (Exception e) {
-            throw new IOException("Failed to create folder: " + e.getMessage(), e);
+            log.error("Error uploading file to Drive: {}", e.getMessage(), e);
+            res.setStatus(500);
+            res.setMessage(e.getMessage());
+        }
+        return res;
+    }
+
+    private Drive createRealDriveService() throws Exception {
+        // Use configured Drive service if available
+        if (configuredDriveService != null) {
+            return configuredDriveService;
+        }
+        
+        // Use existing credential or get a new one
+        if (credential == null) {
+            credential = getOAuth2Credential();
+        }
+        
+        // Build Drive service
+        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+        
+        return new Drive.Builder(httpTransport, jsonFactory, credential)
+                .setApplicationName(applicationName)
+                .build();
+    }
+    
+    private String determineContentType(String fileName) {
+        String lowerFileName = fileName.toLowerCase();
+        
+        if (lowerFileName.endsWith(".jpg") || lowerFileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        } else if (lowerFileName.endsWith(".png")) {
+            return "image/png";
+        } else if (lowerFileName.endsWith(".gif")) {
+            return "image/gif";
+        } else if (lowerFileName.endsWith(".pdf")) {
+            return "application/pdf";
+        } else if (lowerFileName.endsWith(".doc")) {
+            return "application/msword";
+        } else if (lowerFileName.endsWith(".docx")) {
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } else if (lowerFileName.endsWith(".txt")) {
+            return "text/plain";
+        } else if (lowerFileName.endsWith(".csv")) {
+            return "text/csv";
+        } else if (lowerFileName.endsWith(".xlsx")) {
+            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        } else if (lowerFileName.endsWith(".xls")) {
+            return "application/vnd.ms-excel";
+        } else if (lowerFileName.endsWith(".ppt")) {
+            return "application/vnd.ms-powerpoint";
+        } else if (lowerFileName.endsWith(".pptx")) {
+            return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        } else {
+            return "application/octet-stream";
         }
     }
 }

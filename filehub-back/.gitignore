@@ -42,6 +42,9 @@ out/
 !**/application.properties
 !**/application-test.properties
 
+#Google Cloud credentials
+google-drive-service-account.json
+
 # Log files
 *.log
 logs/
@@ -66,3 +69,8 @@ mvnw.cmd
 # Environment variables
 .env
 .env.*
+
+# Google Drive OAuth2 credentials and tokens
+src/main/resources/credentials.json
+tokens/
+google-drive-service-account.json
