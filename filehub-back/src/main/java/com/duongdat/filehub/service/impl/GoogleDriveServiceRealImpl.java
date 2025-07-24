@@ -65,7 +65,7 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     
     private Drive driveService;
     private String rootFolderId;
-    private String driveStorageDirectory; // For simulation fallback
+    private String driveStorageDirectory; // For simulation fallback if real Drive is not available
     private Credential credential; // Store OAuth2 credential for reuse
     
     @Autowired(required = false)
