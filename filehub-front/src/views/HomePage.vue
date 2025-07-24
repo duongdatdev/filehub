@@ -6,12 +6,18 @@
         <p class="text-xl text-gray-600 mb-8">Your secure and efficient file management platform</p>
         
         <div class="flex justify-center space-x-4">
-          <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+          <router-link
+            to="/files"
+            class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
             Upload Files
-          </button>
-          <button class="bg-white text-blue-600 px-6 py-3 rounded-lg border border-blue-600 hover:bg-blue-50 transition-colors">
+          </router-link>
+          <router-link
+            to="/files"
+            class="bg-white text-blue-600 px-6 py-3 rounded-lg border border-blue-600 hover:bg-blue-50 transition-colors"
+          >
             Browse Files
-          </button>
+          </router-link>
         </div>
       </div>
 

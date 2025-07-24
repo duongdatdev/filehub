@@ -6,8 +6,8 @@ import com.duongdat.filehub.dto.response.FileResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.service.FileService;
 import com.duongdat.filehub.util.SecurityUtil;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -22,23 +22,53 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
+@Slf4j
 public class FileController {
     
     private final FileService fileService;
     private final SecurityUtil securityUtil;
     
-    @PostMapping("/upload")
+    @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<FileResponse>> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @Valid @ModelAttribute FileUploadRequest request) {
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "categoryId", required = false) Long categoryId,
+            @RequestParam(value = "tags", required = false) String tags,
+            @RequestParam(value = "visibility", defaultValue = "PRIVATE") String visibility) {
         try {
+            log.debug("File upload request received - File: {}, Title: {}, Description: {}, CategoryId: {}, Tags: {}, Visibility: {}", 
+                      file != null ? file.getOriginalFilename() : "null", title, description, categoryId, tags, visibility);
+            
+            // Validate file parameter
+            if (file == null || file.isEmpty()) {
+                log.warn("File upload failed - File is null or empty");
+                return ResponseEntity.badRequest().body(ApiResponse.error("File is required and cannot be empty"));
+            }
+            
+            // Create FileUploadRequest from individual parameters
+            FileUploadRequest request = new FileUploadRequest();
+            request.setTitle(title != null && !title.trim().isEmpty() ? title.trim() : file.getOriginalFilename());
+            request.setDescription(description != null ? description.trim() : null);
+            request.setCategoryId(categoryId);
+            // Handle tags - set to null if empty to avoid JSON parsing issues
+            request.setTags(tags != null && !tags.trim().isEmpty() ? tags.trim() : null);
+            request.setVisibility(visibility != null ? visibility.toUpperCase() : "PRIVATE");
+            
+            log.debug("Processing file upload for user with request: {}", request);
             FileResponse fileResponse = fileService.uploadFile(file, request);
+            log.info("File uploaded successfully - ID: {}, Filename: {}", fileResponse.getId(), fileResponse.getOriginalFilename());
             return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", fileResponse));
         } catch (IOException e) {
+            log.error("File upload failed due to IOException: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to upload file: " + e.getMessage()));
         } catch (RuntimeException e) {
+            log.error("File upload failed due to RuntimeException: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("File upload failed due to unexpected error: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(ApiResponse.error("Unexpected error occurred: " + e.getMessage()));
         }
     }
     

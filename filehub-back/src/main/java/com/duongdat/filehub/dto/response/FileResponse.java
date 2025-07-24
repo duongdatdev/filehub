@@ -26,6 +26,7 @@ public class FileResponse {
     private Long categoryId;
     private String categoryName;
     private String driveFileId;
+    private String driveFolderId;
     private String downloadUrl;
     private String previewUrl;
     

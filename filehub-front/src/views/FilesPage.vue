@@ -1,0 +1,564 @@
+<template>
+  <div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">My Files</h1>
+        <p class="mt-2 text-gray-600">Upload and manage your files with Google Drive integration</p>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Upload Files</h2>
+        
+        <!-- Drag and Drop Zone -->
+        <div
+          class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors"
+          :class="{
+            'border-blue-400 bg-blue-50': isDragOver,
+            'hover:border-gray-400': !isDragOver
+          }"
+          @dragover.prevent="handleDragOver"
+          @dragleave.prevent="handleDragLeave"
+          @drop.prevent="handleDrop"
+          @click="triggerFileInput"
+        >
+          <div class="space-y-4">
+            <div class="flex justify-center">
+              <svg
+                class="w-12 h-12 text-gray-400"
+                :class="{ 'text-blue-500': isDragOver }"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-lg font-medium text-gray-900">
+                Drop files here or click to browse
+              </p>
+              <p class="text-sm text-gray-500 mt-1">
+                Supports: PDF, DOC, DOCX, TXT, JPG, PNG, MP4, ZIP and more
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                Maximum file size: 100MB
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden File Input -->
+        <input
+          ref="fileInput"
+          type="file"
+          multiple
+          class="hidden"
+          @change="handleFileSelect"
+          :accept="allowedFileTypes"
+        />
+
+        <!-- Upload Form -->
+        <div v-if="selectedFiles.length > 0" class="mt-6">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Selected Files</h3>
+          
+          <div class="space-y-4">
+            <div
+              v-for="(file, index) in selectedFiles"
+              :key="index"
+              class="border border-gray-200 rounded-lg p-4"
+            >
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <h4 class="font-medium text-gray-900">{{ file.name }}</h4>
+                  <p class="text-sm text-gray-500">{{ formatFileSize(file.size) }}</p>
+                  
+                  <!-- File Details Form -->
+                  <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Title
+                      </label>
+                      <input
+                        v-model="file.metadata.title"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        :placeholder="file.name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <select
+                        v-model="file.metadata.categoryId"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select a category</option>
+                        <option
+                          v-for="category in categories"
+                          :key="category.id"
+                          :value="category.id"
+                        >
+                          {{ category.name }}
+                        </option>
+                      </select>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        v-model="file.metadata.description"
+                        rows="2"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter file description (optional)"
+                      ></textarea>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Visibility
+                      </label>
+                      <select
+                        v-model="file.metadata.visibility"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="PRIVATE">Private</option>
+                        <option value="PUBLIC">Public</option>
+                        <option value="SHARED">Shared</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Tags
+                      </label>
+                      <input
+                        v-model="file.metadata.tags"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Tag1, Tag2, Tag3"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <button
+                  @click="removeFile(index)"
+                  class="ml-4 text-red-500 hover:text-red-700"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <!-- Upload Progress -->
+              <div v-if="file.uploading" class="mt-3">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600">Uploading to Google Drive...</span>
+                  <span class="text-gray-600">{{ file.progress }}%</span>
+                </div>
+                <div class="mt-1 bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    :style="{ width: file.progress + '%' }"
+                  ></div>
+                </div>
+              </div>
+              
+              <!-- Upload Status -->
+              <div v-if="file.uploaded" class="mt-3">
+                <div class="flex items-center text-sm text-green-600">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Successfully uploaded to Google Drive
+                </div>
+              </div>
+              
+              <div v-if="file.error" class="mt-3">
+                <div class="flex items-center text-sm text-red-600">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  {{ file.error }}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Upload Actions -->
+          <div class="mt-6 flex justify-between items-center">
+            <button
+              @click="clearFiles"
+              class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Clear All
+            </button>
+            
+            <div class="flex space-x-3">
+              <button
+                @click="uploadFiles"
+                :disabled="isUploading || selectedFiles.every(f => f.uploaded)"
+                class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                <span v-if="isUploading">Uploading...</span>
+                <span v-else>Upload to Google Drive</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Files List -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-semibold text-gray-900">Your Files</h2>
+            <div class="flex items-center space-x-4">
+              <!-- Search -->
+              <div class="relative">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search files..."
+                  class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg
+                  class="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              
+              <!-- Refresh -->
+              <button
+                @click="loadFiles"
+                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Files Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Size
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Storage
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Uploaded
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="file in filteredFiles" :key="file.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 w-8 h-8">
+                      <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ file.title || file.originalFilename }}
+                      </div>
+                      <div class="text-sm text-gray-500">
+                        {{ file.originalFilename }}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ formatFileSize(file.fileSize) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ file.contentType }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span
+                    v-if="file.driveFileId"
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800"
+                  >
+                    Google Drive
+                  </span>
+                  <span
+                    v-else
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800"
+                  >
+                    Local Storage
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {{ formatDate(file.uploadedAt) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                  <button
+                    @click="downloadFile(file)"
+                    class="text-blue-600 hover:text-blue-900"
+                  >
+                    Download
+                  </button>
+                  <button
+                    @click="deleteFile(file)"
+                    class="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div v-if="files.length === 0 && !loading" class="px-6 py-8 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No files</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by uploading your first file.</p>
+          </div>
+          
+          <div v-if="loading" class="px-6 py-8 text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-2 text-sm text-gray-500">Loading files...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { fileApi, type FileResponse } from '@/services/fileApi'
+import { categoryApi, type FileCategory } from '@/services/categoryApi'
+
+// Reactive data
+const isDragOver = ref(false)
+const fileInput = ref<HTMLInputElement>()
+const selectedFiles = ref<any[]>([])
+const files = ref<FileResponse[]>([])
+const categories = ref<FileCategory[]>([])
+const searchQuery = ref('')
+const loading = ref(false)
+const isUploading = ref(false)
+
+// Allowed file types based on backend configuration
+const allowedFileTypes = '.pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp4,.avi,.mp3,.wav,.zip,.rar,.json,.xml,.csv'
+
+// Computed properties
+const filteredFiles = computed(() => {
+  if (!searchQuery.value) return files.value
+  return files.value.filter((file: FileResponse) =>
+    file.originalFilename.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (file.title && file.title.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  )
+})
+
+// Methods
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = true
+}
+
+const handleDragLeave = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = false
+}
+
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault()
+  isDragOver.value = false
+  
+  const files = Array.from(event.dataTransfer?.files || [])
+  addFiles(files)
+}
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = Array.from(target.files || [])
+  addFiles(files)
+}
+
+const addFiles = (files: File[]) => {
+  const newFiles = files.map(file => ({
+    file: file, // Store the original File object
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    metadata: {
+      title: '',
+      description: '',
+      categoryId: '',
+      visibility: 'PRIVATE',
+      tags: ''
+    },
+    uploading: false,
+    uploaded: false,
+    progress: 0,
+    error: null
+  }))
+  
+  selectedFiles.value.push(...newFiles)
+}
+
+const removeFile = (index: number) => {
+  selectedFiles.value.splice(index, 1)
+}
+
+const clearFiles = () => {
+  selectedFiles.value = []
+}
+
+const uploadFiles = async () => {
+  isUploading.value = true
+  
+  for (const file of selectedFiles.value) {
+    if (file.uploaded) continue
+    
+    try {
+      file.uploading = true
+      file.progress = 0
+      file.error = null
+      
+      const formData = new FormData()
+      formData.append('file', file.file) // Use the original File object
+      formData.append('title', file.metadata.title || file.name)
+      formData.append('description', file.metadata.description)
+      formData.append('categoryId', file.metadata.categoryId)
+      formData.append('visibility', file.metadata.visibility)
+      formData.append('tags', file.metadata.tags)
+      
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        if (file.progress < 90) {
+          file.progress += Math.random() * 15
+        }
+      }, 200)
+      
+      const response = await fileApi.uploadFile(formData)
+      
+      clearInterval(progressInterval)
+      file.progress = 100
+      file.uploading = false
+      file.uploaded = true
+      
+      // Add to files list
+      files.value.unshift(response.data)
+      
+    } catch (error: any) {
+      file.uploading = false
+      file.error = error.response?.data?.message || error.message || 'Upload failed'
+    }
+  }
+  
+  isUploading.value = false
+}
+
+const loadFiles = async () => {
+  loading.value = true
+  try {
+    const response = await fileApi.getUserFiles()
+    files.value = response.data.content
+  } catch (error) {
+    console.error('Failed to load files:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadCategories = async () => {
+  try {
+    const response = await categoryApi.getCategories()
+    categories.value = response.data
+  } catch (error) {
+    console.error('Failed to load categories:', error)
+  }
+}
+
+const downloadFile = async (file: FileResponse) => {
+  try {
+    const blob = await fileApi.downloadFile(file.id)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = file.originalFilename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to download file:', error)
+  }
+}
+
+const deleteFile = async (file: FileResponse) => {
+  if (!confirm(`Are you sure you want to delete "${file.originalFilename}"?`)) {
+    return
+  }
+  
+  try {
+    await fileApi.deleteFile(file.id)
+    files.value = files.value.filter((f: FileResponse) => f.id !== file.id)
+  } catch (error) {
+    console.error('Failed to delete file:', error)
+  }
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+}
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
+}
+
+// Lifecycle hooks
+onMounted(() => {
+  loadFiles()
+  loadCategories()
+})
+</script>

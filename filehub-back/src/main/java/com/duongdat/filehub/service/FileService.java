@@ -80,7 +80,13 @@ public class FileService {
         file.setTitle(request.getTitle() != null ? request.getTitle() : originalFilename);
         file.setDescription(request.getDescription());
         file.setCategoryId(request.getCategoryId());
-        file.setTags(request.getTags());
+        // Handle tags properly for JSON column - convert empty/null to null or valid JSON
+        String tags = request.getTags();
+        if (tags == null || tags.trim().isEmpty()) {
+            file.setTags(null); // NULL is valid for JSON column
+        } else {
+            file.setTags(tags);
+        }
         file.setVisibility(request.getVisibility());
         
         // Primary storage: Upload to Google Drive first
@@ -300,6 +306,7 @@ public class FileService {
         response.setUpdatedAt(file.getUpdatedAt());
         response.setCategoryId(file.getCategoryId());
         response.setDriveFileId(file.getDriveFileId());
+        response.setDriveFolderId(file.getDriveFolderId());
         
         // Set category name if category exists
         if (file.getCategoryId() != null) {

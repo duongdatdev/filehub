@@ -25,6 +25,17 @@
             </router-link>
 
             <router-link
+              to="/files"
+              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+              :class="isActiveRoute('/files') 
+                ? 'border-blue-500 text-gray-900' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            >
+              <DocumentIcon class="w-4 h-4 mr-2" />
+              My Files
+            </router-link>
+
+            <router-link
               to="/about"
               class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
               :class="isActiveRoute('/about') 
@@ -195,10 +206,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminStore } from '@/stores/admin'
 import FolderIcon from '@/components/icons/FolderIcon.vue'
+import DocumentIcon from '@/components/icons/DocumentIcon.vue'
 import InfoIcon from '@/components/icons/InfoIcon.vue'
 import UserIcon from '@/components/icons/UserIcon.vue'
-import MenuIcon from '@/components/icons/MenuIcon.vue'
-import CloseIcon from '@/components/icons/CloseIcon.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -5,6 +5,7 @@ import AboutPage from '@/views/AboutPage.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import RegisterPage from '@/views/RegisterPage.vue'
 import AdminUsersPage from '@/views/AdminUsersPage.vue'
+import FilesPage from '@/views/FilesPage.vue'
 import UITestPage from '@/views/UITestPage.vue'
 
 const routes = [
@@ -12,6 +13,12 @@ const routes = [
     path: '/',
     name: 'Home',
     component: HomePage,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/files',
+    name: 'Files',
+    component: FilesPage,
     meta: { requiresAuth: true }
   },
   {

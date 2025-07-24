@@ -1,0 +1,85 @@
+# Root level gitignore for filehub project
+
+# Test files and temporary files
+test-*.html
+test-*.txt
+test_*.txt
+quick-test.html
+*.tmp
+*.temp
+
+# Database files and migrations (if temporary)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+log/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Google certificates and credentials
+*.p12
+*.json
+*-credentials.json
+*-service-account.json
+google-credentials.json
+service-account-key.json
+client_secret*.json
+credentials.json
+token.json
+*.pem
+*.key
+*.crt
+*.cert
+google-cloud-key.json
+
+# Uploaded files directory (if contains sensitive data)
+uploads/*.jpg
+uploads/*.png
+uploads/*.gif
+uploads/*.pdf
+uploads/*.doc
+uploads/*.docx
+# Keep uploads directory structure but ignore files
+uploads/*
+!uploads/.gitkeep
+!uploads/google-drive-simulation/.gitkeep
+
+# Build artifacts
+build/
+dist/
+target/
+
+# Dependencies
+node_modules/
+
+# Coverage reports
+coverage/
+*.coverage
