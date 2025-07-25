@@ -14,6 +14,10 @@ public class FileUploadRequest {
     
     private Long categoryId;
     
+    private Long departmentId;
+    
+    private Long projectId;
+    
     private String tags;
     
     private String visibility = "PRIVATE"; // PRIVATE, PUBLIC, SHARED

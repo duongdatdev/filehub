@@ -25,6 +25,10 @@ public class FileResponse {
     private LocalDateTime updatedAt;
     private Long categoryId;
     private String categoryName;
+    private Long departmentId;
+    private String departmentName;
+    private Long projectId;
+    private String projectName;
     private String driveFileId;
     private String driveFolderId;
     private String downloadUrl;

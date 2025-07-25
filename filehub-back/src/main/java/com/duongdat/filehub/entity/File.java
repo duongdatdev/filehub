@@ -41,6 +41,12 @@ public class File {
     @Column(name = "category_id")
     private Long categoryId;
     
+    @Column(name = "department_id")
+    private Long departmentId;
+    
+    @Column(name = "project_id")
+    private Long projectId;
+    
     @Column(name = "title")
     private String title;
     
@@ -77,6 +83,15 @@ public class File {
     
     @Column(name = "drive_folder_id")
     private String driveFolderId;
+    
+    // Relationship mappings
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    private Department department;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", insertable = false, updatable = false)
+    private Project project;
     
     @PrePersist
     public void prePersist() {

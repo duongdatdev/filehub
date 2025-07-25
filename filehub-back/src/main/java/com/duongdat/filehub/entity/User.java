@@ -25,6 +25,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
     
+    @Column(name = "department_id")
+    private Long departmentId;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -33,6 +36,11 @@ public class User {
     
     @Column(name = "is_active")
     private boolean isActive = true;
+    
+    // Relationship mappings
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    private Department department;
     
     // Constructors
     public User() {
@@ -127,6 +135,22 @@ public class User {
     
     public void setActive(boolean active) {
         isActive = active;
+    }
+    
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+    
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
+    }
+    
+    public Department getDepartment() {
+        return department;
+    }
+    
+    public void setDepartment(Department department) {
+        this.department = department;
     }
     
     @PreUpdate

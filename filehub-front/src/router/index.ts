@@ -5,6 +5,9 @@ import AboutPage from '@/views/AboutPage.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import RegisterPage from '@/views/RegisterPage.vue'
 import AdminUsersPage from '@/views/AdminUsersPage.vue'
+import AdminDashboard from '@/views/AdminDashboard.vue'
+import AdminDepartments from '@/views/AdminDepartments.vue'
+import AdminProjects from '@/views/AdminProjects.vue'
 import FilesPage from '@/views/FilesPage.vue'
 import UITestPage from '@/views/UITestPage.vue'
 
@@ -40,9 +43,27 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboard,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/admin/users',
     name: 'AdminUsers',
     component: AdminUsersPage,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/departments',
+    name: 'AdminDepartments',
+    component: AdminDepartments,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/projects',
+    name: 'AdminProjects',
+    component: AdminProjects,
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {

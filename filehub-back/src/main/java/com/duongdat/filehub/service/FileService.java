@@ -25,6 +25,11 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -80,6 +85,8 @@ public class FileService {
         file.setTitle(request.getTitle() != null ? request.getTitle() : originalFilename);
         file.setDescription(request.getDescription());
         file.setCategoryId(request.getCategoryId());
+        file.setDepartmentId(request.getDepartmentId());
+        file.setProjectId(request.getProjectId());
         // Handle tags properly for JSON column - convert empty/null to null or valid JSON
         String tags = request.getTags();
         if (tags == null || tags.trim().isEmpty()) {
@@ -139,12 +146,12 @@ public class FileService {
     }
     
     public PageResponse<FileResponse> getUserFiles(Long userId, String filename, Long categoryId, 
-                                                 String contentType, int page, int size, 
-                                                 String sortBy, String sortDirection) {
+                                                 Long departmentId, Long projectId, String contentType, 
+                                                 int page, int size, String sortBy, String sortDirection) {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<File> filesPage = fileRepository.findFilesWithFilters(userId, filename, categoryId, contentType, pageable);
+        Page<File> filesPage = fileRepository.findFilesWithFilters(userId, filename, categoryId, departmentId, projectId, contentType, pageable);
         
         return new PageResponse<FileResponse>(
                 filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
@@ -157,6 +164,39 @@ public class FileService {
                 filesPage.hasNext(),
                 filesPage.hasPrevious()
         );
+    }
+    
+    // Admin method to get all files with filters
+    public PageResponse<FileResponse> getAllFilesWithFilters(String filename, Long categoryId, 
+                                                           Long departmentId, Long projectId, Long userId,
+                                                           String contentType, int page, int size, 
+                                                           String sortBy, String sortDirection) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<File> filesPage = fileRepository.findAllFilesWithFilters(filename, categoryId, departmentId, projectId, userId, contentType, pageable);
+        
+        return new PageResponse<FileResponse>(
+                filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
+                filesPage.getNumber(),
+                filesPage.getSize(),
+                filesPage.getTotalElements(),
+                filesPage.getTotalPages(),
+                filesPage.isFirst(),
+                filesPage.isLast(),
+                filesPage.hasNext(),
+                filesPage.hasPrevious()
+        );
+    }
+    
+    public List<FileResponse> getFilesByDepartment(Long departmentId) {
+        List<File> files = fileRepository.findByDepartmentIdAndIsDeletedFalse(departmentId);
+        return files.stream().map(this::convertToFileResponse).toList();
+    }
+    
+    public List<FileResponse> getFilesByProject(Long projectId) {
+        List<File> files = fileRepository.findByProjectIdAndIsDeletedFalse(projectId);
+        return files.stream().map(this::convertToFileResponse).toList();
     }
     
     public Optional<FileResponse> getFileById(Long fileId) {
@@ -305,6 +345,8 @@ public class FileService {
         response.setUploadedAt(file.getUploadedAt());
         response.setUpdatedAt(file.getUpdatedAt());
         response.setCategoryId(file.getCategoryId());
+        response.setDepartmentId(file.getDepartmentId());
+        response.setProjectId(file.getProjectId());
         response.setDriveFileId(file.getDriveFileId());
         response.setDriveFolderId(file.getDriveFolderId());
         
@@ -312,6 +354,16 @@ public class FileService {
         if (file.getCategoryId() != null) {
             fileCategoryRepository.findById(file.getCategoryId())
                     .ifPresent(category -> response.setCategoryName(category.getName()));
+        }
+        
+        // Set department name if department exists  
+        if (file.getDepartmentId() != null && file.getDepartment() != null) {
+            response.setDepartmentName(file.getDepartment().getName());
+        }
+        
+        // Set project name if project exists
+        if (file.getProjectId() != null && file.getProject() != null) {
+            response.setProjectName(file.getProject().getName());
         }
         
         // Generate download URL

@@ -47,17 +47,63 @@
             </router-link>
 
             <!-- Admin Navigation -->
-            <router-link
-              v-if="isAdmin"
-              to="/admin/users"
-              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
-              :class="isActiveRoute('/admin') 
-                ? 'border-blue-500 text-gray-900' 
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            >
-              <UserIcon class="w-4 h-4 mr-2" />
-              Admin Panel
-            </router-link>
+            <div v-if="isAdmin" class="relative">
+              <button
+                @click="showAdminDropdown = !showAdminDropdown"
+                class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200"
+                :class="isActiveRoute('/admin') 
+                  ? 'border-blue-500 text-gray-900' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+              >
+                <UserIcon class="w-4 h-4 mr-2" />
+                Admin Panel
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              <!-- Admin Dropdown -->
+              <div
+                v-if="showAdminDropdown"
+                class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200"
+                @click="showAdminDropdown = false"
+              >
+                <router-link
+                  to="/admin"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Dashboard
+                </router-link>
+                <router-link
+                  to="/admin/users"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <UserIcon class="w-4 h-4 inline mr-2" />
+                  Manage Users
+                </router-link>
+                <router-link
+                  to="/admin/departments"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                  </svg>
+                  Departments
+                </router-link>
+                <router-link
+                  to="/admin/projects"
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 713.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3A2.25 2.25 0 008.25 5.25v3.131" />
+                  </svg>
+                  Projects
+                </router-link>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -183,17 +229,50 @@
           >
             About
           </router-link>
-          <router-link
-            v-if="isAdmin"
-            to="/admin/users"
-            class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
-            :class="isActiveRoute('/admin') 
-              ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
-              : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
-            @click="closeMobileMenu"
-          >
-            Admin Panel
-          </router-link>
+          <!-- Admin Mobile Menu -->
+          <div v-if="isAdmin" class="pl-3">
+            <div class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Admin</div>
+            <router-link
+              to="/admin"
+              class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+              :class="isActiveRoute('/admin') && route.path === '/admin'
+                ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+                : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+              @click="closeMobileMenu"
+            >
+              Dashboard
+            </router-link>
+            <router-link
+              to="/admin/users"
+              class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+              :class="isActiveRoute('/admin/users')
+                ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+                : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+              @click="closeMobileMenu"
+            >
+              Manage Users
+            </router-link>
+            <router-link
+              to="/admin/departments"
+              class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+              :class="isActiveRoute('/admin/departments')
+                ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+                : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+              @click="closeMobileMenu"
+            >
+              Departments
+            </router-link>
+            <router-link
+              to="/admin/projects"
+              class="block pl-3 pr-4 py-2 text-base font-medium transition-colors duration-200"
+              :class="isActiveRoute('/admin/projects')
+                ? 'border-l-4 border-blue-500 text-blue-700 bg-blue-50' 
+                : 'border-l-4 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+              @click="closeMobileMenu"
+            >
+              Projects
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -218,6 +297,7 @@ const adminStore = useAdminStore()
 // State
 const showUserMenu = ref(false)
 const showMobileMenu = ref(false)
+const showAdminDropdown = ref(false)
 const userMenuRef = ref<HTMLElement>()
 
 // Computed

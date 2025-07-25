@@ -112,6 +112,45 @@
                       </select>
                     </div>
                     
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Department
+                      </label>
+                      <select
+                        v-model="file.metadata.departmentId"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select a department</option>
+                        <option
+                          v-for="department in departments"
+                          :key="department.id"
+                          :value="department.id"
+                        >
+                          {{ department.name }}
+                        </option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Project
+                      </label>
+                      <select
+                        v-model="file.metadata.projectId"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        :disabled="!file.metadata.departmentId"
+                      >
+                        <option value="">Select a project</option>
+                        <option
+                          v-for="project in filteredProjects(file.metadata.departmentId)"
+                          :key="project.id"
+                          :value="project.id"
+                        >
+                          {{ project.name }}
+                        </option>
+                      </select>
+                    </div>
+                    
                     <div class="md:col-span-2">
                       <label class="block text-sm font-medium text-gray-700 mb-1">
                         Description
@@ -272,6 +311,12 @@
                   Type
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Department
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Project
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Storage
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -308,6 +353,18 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ file.contentType }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span v-if="file.departmentName" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ file.departmentName }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <span v-if="file.projectName" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {{ file.projectName }}
+                  </span>
+                  <span v-else class="text-gray-400">-</span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span
@@ -366,6 +423,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { fileApi, type FileResponse } from '@/services/fileApi'
 import { categoryApi, type FileCategory } from '@/services/categoryApi'
+import departmentApi, { type Department } from '@/services/departmentApi'
+import projectApi, { type Project } from '@/services/projectApi'
 
 // Reactive data
 const isDragOver = ref(false)
@@ -373,6 +432,8 @@ const fileInput = ref<HTMLInputElement>()
 const selectedFiles = ref<any[]>([])
 const files = ref<FileResponse[]>([])
 const categories = ref<FileCategory[]>([])
+const departments = ref<Department[]>([])
+const projects = ref<Project[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 const isUploading = ref(false)
@@ -428,6 +489,8 @@ const addFiles = (files: File[]) => {
       title: '',
       description: '',
       categoryId: '',
+      departmentId: '',
+      projectId: '',
       visibility: 'PRIVATE',
       tags: ''
     },
@@ -464,6 +527,8 @@ const uploadFiles = async () => {
       formData.append('title', file.metadata.title || file.name)
       formData.append('description', file.metadata.description)
       formData.append('categoryId', file.metadata.categoryId)
+      formData.append('departmentId', file.metadata.departmentId)
+      formData.append('projectId', file.metadata.projectId)
       formData.append('visibility', file.metadata.visibility)
       formData.append('tags', file.metadata.tags)
       
@@ -556,9 +621,37 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
 }
 
+// Helper function to filter projects by department
+const filteredProjects = (departmentId: string | number) => {
+  if (!departmentId) return []
+  return projects.value.filter(project => project.departmentId === Number(departmentId))
+}
+
+// Load departments
+const loadDepartments = async () => {
+  try {
+    const response = await departmentApi.getAll()
+    departments.value = response.data.data
+  } catch (error) {
+    console.error('Failed to load departments:', error)
+  }
+}
+
+// Load projects
+const loadProjects = async () => {
+  try {
+    const response = await projectApi.getAll()
+    projects.value = response.data.data
+  } catch (error) {
+    console.error('Failed to load projects:', error)
+  }
+}
+
 // Lifecycle hooks
 onMounted(() => {
   loadFiles()
   loadCategories()
+  loadDepartments()
+  loadProjects()
 })
 </script>

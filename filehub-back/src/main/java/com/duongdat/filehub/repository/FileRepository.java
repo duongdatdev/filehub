@@ -29,12 +29,36 @@ public interface FileRepository extends JpaRepository<File, Long> {
     @Query("SELECT f FROM File f WHERE f.userId = :userId AND f.isDeleted = false AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
            "(:categoryId IS NULL OR f.categoryId = :categoryId) AND " +
+           "(:departmentId IS NULL OR f.departmentId = :departmentId) AND " +
+           "(:projectId IS NULL OR f.projectId = :projectId) AND " +
            "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
     Page<File> findFilesWithFilters(@Param("userId") Long userId,
                                   @Param("filename") String filename,
                                   @Param("categoryId") Long categoryId,
+                                  @Param("departmentId") Long departmentId,
+                                  @Param("projectId") Long projectId,
                                   @Param("contentType") String contentType,
                                   Pageable pageable);
+    
+    // Admin query for all files with filters
+    @Query("SELECT f FROM File f WHERE f.isDeleted = false AND " +
+           "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
+           "(:categoryId IS NULL OR f.categoryId = :categoryId) AND " +
+           "(:departmentId IS NULL OR f.departmentId = :departmentId) AND " +
+           "(:projectId IS NULL OR f.projectId = :projectId) AND " +
+           "(:userId IS NULL OR f.userId = :userId) AND " +
+           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
+    Page<File> findAllFilesWithFilters(@Param("filename") String filename,
+                                     @Param("categoryId") Long categoryId,
+                                     @Param("departmentId") Long departmentId,
+                                     @Param("projectId") Long projectId,
+                                     @Param("userId") Long userId,
+                                     @Param("contentType") String contentType,
+                                     Pageable pageable);
+                                     
+    List<File> findByDepartmentIdAndIsDeletedFalse(Long departmentId);
+    
+    List<File> findByProjectIdAndIsDeletedFalse(Long projectId);
     
     @Query("SELECT SUM(f.fileSize) FROM File f WHERE f.userId = :userId AND f.isDeleted = false")
     Long getTotalFileSizeByUser(@Param("userId") Long userId);

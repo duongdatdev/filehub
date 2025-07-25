@@ -1,7 +1,6 @@
 package com.duongdat.filehub.service.impl;
 
 import com.duongdat.filehub.service.GoogleDriveService;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,7 +15,6 @@ import org.springframework.test.context.TestPropertySource;
     "google.drive.enabled=true",
     "google.drive.use.real=false" // Use simulation for testing
 })
-@Slf4j
 public class GoogleDriveOAuth2IntegrationTest {
 
     @Autowired
@@ -26,7 +24,7 @@ public class GoogleDriveOAuth2IntegrationTest {
     public void testGoogleDriveServiceInitialization() {
         // This test verifies that the service can be initialized
         // In simulation mode, it should work without OAuth2 setup
-        log.info("Google Drive service initialized successfully");
+        System.out.println("Google Drive service initialized successfully");
         assert googleDriveService != null;
     }
 
