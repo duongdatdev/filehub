@@ -196,10 +196,10 @@
                     {{ getManagerName(department.managerId) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    0
+                    {{ department.userCount || 0 }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    0
+                    {{ department.projectCount || 0 }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -432,7 +432,7 @@ const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 const loadDepartments = async () => {
   try {
     loading.value = true
-    const response = await adminApi.getDepartments()
+    const response = await adminApi.getDepartmentsWithStats()
     if (response.success && response.data) {
       departments.value = response.data
       stats.value.totalDepartments = response.data.length

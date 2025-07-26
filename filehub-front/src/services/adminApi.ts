@@ -50,6 +50,28 @@ export interface Department {
   managerId?: number
   isActive: boolean
   createdAt: string
+  userCount?: number
+  projectCount?: number
+}
+
+export interface UserDepartment {
+  id: number
+  userId: number
+  departmentId: number
+  role: string
+  isActive: boolean
+  assignedAt: string
+  assignedBy?: number
+}
+
+export interface UserProject {
+  id: number
+  userId: number
+  projectId: number
+  role: string
+  isActive: boolean
+  assignedAt: string
+  assignedBy?: number
 }
 
 export interface Project {
@@ -57,12 +79,9 @@ export interface Project {
   name: string
   description?: string
   departmentId: number
-  managerId: number
-  status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED'
-  startDate: string
-  endDate?: string
-  isActive: boolean
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
   createdAt: string
+  updatedAt?: string
 }
 
 export interface UserAssignmentRequest {
@@ -152,48 +171,78 @@ class AdminApiService {
 
   // Department Management
   async getDepartments(): Promise<ApiResponse<Department[]>> {
-    return apiService.get<ApiResponse<Department[]>>('/departments')
+    return apiService.get<ApiResponse<Department[]>>('/admin/departments')
+  }
+
+  async getDepartmentsWithStats(): Promise<ApiResponse<Department[]>> {
+    const response = await this.getDepartments()
+    if (response.success && response.data) {
+      // Get stats for each department
+      const departmentsWithStats = await Promise.all(
+        response.data.map(async (dept) => {
+          try {
+            const statsResponse = await apiService.get<ApiResponse<{userCount: number, projectCount: number}>>(`/admin/departments/${dept.id}/stats`)
+            if (statsResponse.success && statsResponse.data) {
+              return {
+                ...dept,
+                userCount: statsResponse.data.userCount,
+                projectCount: statsResponse.data.projectCount
+              }
+            }
+          } catch (error) {
+            console.warn(`Failed to get stats for department ${dept.id}:`, error)
+          }
+          return {
+            ...dept,
+            userCount: 0,
+            projectCount: 0
+          }
+        })
+      )
+      return { ...response, data: departmentsWithStats }
+    }
+    return response
   }
 
   async getDepartmentById(id: number): Promise<ApiResponse<Department>> {
-    return apiService.get<ApiResponse<Department>>(`/departments/${id}`)
+    return apiService.get<ApiResponse<Department>>(`/admin/departments/${id}`)
   }
 
   async createDepartment(department: Omit<Department, 'id' | 'createdAt'>): Promise<ApiResponse<Department>> {
-    return apiService.post<ApiResponse<Department>>('/departments', department)
+    return apiService.post<ApiResponse<Department>>('/admin/departments', department)
   }
 
   async updateDepartment(id: number, department: Partial<Department>): Promise<ApiResponse<Department>> {
-    return apiService.put<ApiResponse<Department>>(`/departments/${id}`, department)
+    return apiService.put<ApiResponse<Department>>(`/admin/departments/${id}`, department)
   }
 
   async deleteDepartment(id: number): Promise<ApiResponse<boolean>> {
-    return apiService.delete<ApiResponse<boolean>>(`/departments/${id}`)
+    return apiService.delete<ApiResponse<boolean>>(`/admin/departments/${id}`)
   }
 
   // Project Management
   async getProjects(): Promise<ApiResponse<Project[]>> {
-    return apiService.get<ApiResponse<Project[]>>('/projects')
+    return apiService.get<ApiResponse<Project[]>>('/admin/projects')
   }
 
   async getProjectById(id: number): Promise<ApiResponse<Project>> {
-    return apiService.get<ApiResponse<Project>>(`/projects/${id}`)
+    return apiService.get<ApiResponse<Project>>(`/admin/projects/${id}`)
   }
 
   async createProject(project: Omit<Project, 'id' | 'createdAt'>): Promise<ApiResponse<Project>> {
-    return apiService.post<ApiResponse<Project>>('/projects', project)
+    return apiService.post<ApiResponse<Project>>('/admin/projects', project)
   }
 
   async updateProject(id: number, project: Partial<Project>): Promise<ApiResponse<Project>> {
-    return apiService.put<ApiResponse<Project>>(`/projects/${id}`, project)
+    return apiService.put<ApiResponse<Project>>(`/admin/projects/${id}`, project)
   }
 
   async updateProjectStatus(id: number, status: Project['status']): Promise<ApiResponse<Project>> {
-    return apiService.patch<ApiResponse<Project>>(`/projects/${id}/status`, { status })
+    return apiService.patch<ApiResponse<Project>>(`/admin/projects/${id}/status?status=${status}`)
   }
 
   async deleteProject(id: number): Promise<ApiResponse<boolean>> {
-    return apiService.delete<ApiResponse<boolean>>(`/projects/${id}`)
+    return apiService.delete<ApiResponse<boolean>>(`/admin/projects/${id}`)
   }
 
   // Enhanced User Management with Assignments
@@ -201,12 +250,49 @@ class AdminApiService {
     return apiService.get<ApiResponse<AdminUserDetailResponse>>(`/admin/users/${id}/details`)
   }
 
-  async getUserDepartments(userId: number): Promise<ApiResponse<Department[]>> {
-    return apiService.get<ApiResponse<Department[]>>(`/admin/users/${userId}/departments`)
+  async getUserDepartments(userId: number): Promise<ApiResponse<UserDepartment[]>> {
+    return apiService.get<ApiResponse<UserDepartment[]>>(`/admin/users/${userId}/departments`)
   }
 
-  async getUserProjects(userId: number): Promise<ApiResponse<Project[]>> {
-    return apiService.get<ApiResponse<Project[]>>(`/admin/users/${userId}/projects`)
+  async getUserProjects(userId: number): Promise<ApiResponse<UserProject[]>> {
+    return apiService.get<ApiResponse<UserProject[]>>(`/admin/users/${userId}/projects`)
+  }
+
+  // Get projects available for assignment to a specific user (only from departments they belong to)
+  async getAvailableProjectsForUser(userId: number): Promise<ApiResponse<Project[]>> {
+    try {
+      // Get user's departments
+      const userDepartmentsResponse = await this.getUserDepartments(userId)
+      if (!userDepartmentsResponse.success || !userDepartmentsResponse.data) {
+        throw new Error('Failed to fetch user departments')
+      }
+
+      // Get all projects
+      const allProjectsResponse = await this.getProjects()
+      if (!allProjectsResponse.success || !allProjectsResponse.data) {
+        throw new Error('Failed to fetch projects')
+      }
+
+      // Extract department IDs from user departments
+      const userDepartmentIds = userDepartmentsResponse.data.map(userDept => userDept.departmentId)
+      
+      // Filter projects to only include those from departments where user is a member
+      const availableProjects = allProjectsResponse.data.filter(project => 
+        userDepartmentIds.includes(project.departmentId)
+      )
+
+      return {
+        success: true,
+        message: 'Available projects retrieved successfully',
+        data: availableProjects
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to fetch available projects for user',
+        data: []
+      }
+    }
   }
 
   // User Assignment Management

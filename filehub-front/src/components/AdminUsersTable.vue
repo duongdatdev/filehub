@@ -414,9 +414,5 @@ const clearSelection = () => {
   adminStore.clearSelection()
 }
 
-const handleBulkAssignmentSuccess = () => {
-  showBulkAssignmentModal.value = false
-  // Refresh the user list to show updated assignments
-  adminStore.fetchUsers()
-}
+// Removed handleBulkAssignmentSuccess as the BulkAssignmentModal is commented out
 </script>

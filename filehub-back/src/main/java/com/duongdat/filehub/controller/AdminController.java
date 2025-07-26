@@ -13,7 +13,11 @@ import com.duongdat.filehub.dto.response.AdminUserDetailResponse;
 import com.duongdat.filehub.entity.Role;
 import com.duongdat.filehub.entity.UserDepartment;
 import com.duongdat.filehub.entity.UserProject;
+import com.duongdat.filehub.entity.Department;
+import com.duongdat.filehub.entity.Project;
 import com.duongdat.filehub.service.AdminService;
+import com.duongdat.filehub.service.DepartmentService;
+import com.duongdat.filehub.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +33,8 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final DepartmentService departmentService;
+    private final ProjectService projectService;
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
@@ -125,7 +131,24 @@ public class AdminController {
             @PathVariable Long userId,
             @RequestBody UserAssignmentRequest request) {
         try {
-            UserResponse user = adminService.assignUserToProject(userId, request.getProjectIds().get(0));
+            Long projectId = null;
+            
+            // Check if projectId is provided directly
+            if (request.getProjectId() != null) {
+                projectId = request.getProjectId();
+            }
+            // Otherwise, check if projectIds list is provided and not empty
+            else if (request.getProjectIds() != null && !request.getProjectIds().isEmpty()) {
+                projectId = request.getProjectIds().get(0);
+            }
+            
+            if (projectId == null) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Either projectId or projectIds must be provided"));
+            }
+            
+            String role = request.getRole() != null ? request.getRole() : "MEMBER";
+            UserResponse user = adminService.assignUserToProject(userId, projectId, role);
             return ResponseEntity.ok(ApiResponse.success("User assigned to project successfully", user));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -221,6 +244,145 @@ public class AdminController {
         try {
             List<UserResponse> users = adminService.batchUpdateUserAssignments(request);
             return ResponseEntity.ok(ApiResponse.success("Batch update completed successfully", users));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Department Management (Admin endpoints)
+    @GetMapping("/departments")
+    public ResponseEntity<ApiResponse<List<Department>>> getAllDepartments() {
+        try {
+            List<Department> departments = departmentService.getAllActiveDepartments();
+            return ResponseEntity.ok(ApiResponse.success("Departments retrieved successfully", departments));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/departments/{id}")
+    public ResponseEntity<ApiResponse<Department>> getDepartmentById(@PathVariable Long id) {
+        try {
+            Department department = departmentService.getDepartmentById(id)
+                    .orElseThrow(() -> new RuntimeException("Department not found"));
+            return ResponseEntity.ok(ApiResponse.success("Department retrieved successfully", department));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/departments")
+    public ResponseEntity<ApiResponse<Department>> createDepartment(@RequestBody Department department) {
+        try {
+            Department createdDepartment = departmentService.createDepartment(department);
+            return ResponseEntity.ok(ApiResponse.success("Department created successfully", createdDepartment));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/departments/{id}")
+    public ResponseEntity<ApiResponse<Department>> updateDepartment(@PathVariable Long id, @RequestBody Department department) {
+        try {
+            Department updatedDepartment = departmentService.updateDepartment(id, department);
+            return ResponseEntity.ok(ApiResponse.success("Department updated successfully", updatedDepartment));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/departments/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteDepartment(@PathVariable Long id) {
+        try {
+            boolean deleted = departmentService.deleteDepartment(id);
+            if (deleted) {
+                return ResponseEntity.ok(ApiResponse.success("Department deleted successfully", null));
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Department not found"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/departments/{id}/stats")
+    public ResponseEntity<ApiResponse<Object>> getDepartmentStats(@PathVariable Long id) {
+        try {
+            Long userCount = departmentService.getUserCountByDepartment(id);
+            Long projectCount = departmentService.getActiveProjectCountByDepartment(id);
+            
+            var stats = java.util.Map.of(
+                "userCount", userCount,
+                "projectCount", projectCount
+            );
+            
+            return ResponseEntity.ok(ApiResponse.success("Department statistics retrieved successfully", stats));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Project Management (Admin endpoints)
+    @GetMapping("/projects")
+    public ResponseEntity<ApiResponse<List<Project>>> getAllProjects() {
+        try {
+            List<Project> projects = projectService.getAllActiveProjects();
+            return ResponseEntity.ok(ApiResponse.success("Projects retrieved successfully", projects));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/projects/{id}")
+    public ResponseEntity<ApiResponse<Project>> getProjectById(@PathVariable Long id) {
+        try {
+            Project project = projectService.getProjectById(id)
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+            return ResponseEntity.ok(ApiResponse.success("Project retrieved successfully", project));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/projects")
+    public ResponseEntity<ApiResponse<Project>> createProject(@RequestBody Project project) {
+        try {
+            Project createdProject = projectService.createProject(project);
+            return ResponseEntity.ok(ApiResponse.success("Project created successfully", createdProject));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/projects/{id}")
+    public ResponseEntity<ApiResponse<Project>> updateProject(@PathVariable Long id, @RequestBody Project project) {
+        try {
+            Project updatedProject = projectService.updateProject(id, project);
+            return ResponseEntity.ok(ApiResponse.success("Project updated successfully", updatedProject));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/projects/{id}/status")
+    public ResponseEntity<ApiResponse<Project>> updateProjectStatus(@PathVariable Long id, @RequestParam String status) {
+        try {
+            Project updatedProject = projectService.updateProjectStatus(id, status);
+            return ResponseEntity.ok(ApiResponse.success("Project status updated successfully", updatedProject));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/projects/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteProject(@PathVariable Long id) {
+        try {
+            boolean deleted = projectService.deleteProject(id);
+            if (deleted) {
+                return ResponseEntity.ok(ApiResponse.success("Project deleted successfully", null));
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Project not found"));
+            }
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

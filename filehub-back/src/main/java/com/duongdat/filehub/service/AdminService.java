@@ -8,9 +8,15 @@ import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.dto.response.RecentActivityResponse;
 import com.duongdat.filehub.dto.response.UserResponse;
 import com.duongdat.filehub.dto.response.AdminUserDetailResponse;
+import com.duongdat.filehub.dto.response.UserDepartmentResponse;
+import com.duongdat.filehub.dto.response.UserProjectResponse;
+import com.duongdat.filehub.dto.response.UserDepartmentSummary;
+import com.duongdat.filehub.dto.response.UserProjectSummary;
 import com.duongdat.filehub.entity.User;
 import com.duongdat.filehub.entity.UserDepartment;
 import com.duongdat.filehub.entity.UserProject;
+import com.duongdat.filehub.entity.Department;
+import com.duongdat.filehub.entity.Project;
 import com.duongdat.filehub.repository.UserRepository;
 import com.duongdat.filehub.repository.DepartmentRepository;
 import com.duongdat.filehub.repository.ProjectRepository;
@@ -27,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -142,11 +149,15 @@ public class AdminService {
     }
 
     public UserResponse assignUserToProject(Long userId, Long projectId) {
+        return assignUserToProject(userId, projectId, "MEMBER");
+    }
+
+    public UserResponse assignUserToProject(Long userId, Long projectId, String role) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
         // Use UserAssignmentService to perform the actual assignment
-        userAssignmentService.assignUserToProject(userId, projectId, "MEMBER");
+        userAssignmentService.assignUserToProject(userId, projectId, role != null ? role : "MEMBER");
         
         return mapToUserResponse(user);
     }
@@ -212,8 +223,17 @@ public class AdminService {
             .orElseThrow(() -> new RuntimeException("User not found"));
         
         UserResponse userResponse = mapToUserResponse(user);
-        List<UserDepartment> departments = userAssignmentService.getUserDepartments(userId);
-        List<UserProject> projects = userAssignmentService.getUserProjects(userId);
+        List<UserDepartment> departmentEntities = userAssignmentService.getUserDepartments(userId);
+        List<UserProject> projectEntities = userAssignmentService.getUserProjects(userId);
+        
+        // Convert entities to summary DTOs to avoid serialization issues
+        List<UserDepartmentSummary> departments = departmentEntities.stream()
+                .map(this::mapToUserDepartmentSummary)
+                .collect(Collectors.toList());
+        
+        List<UserProjectSummary> projects = projectEntities.stream()
+                .map(this::mapToUserProjectSummary)
+                .collect(Collectors.toList());
         
         return new AdminUserDetailResponse(userResponse, departments, projects);
     }
@@ -314,5 +334,114 @@ public class AdminService {
         }
         
         return result;
+    }
+    
+    // Mapping methods to convert entities to DTOs
+    private UserDepartmentSummary mapToUserDepartmentSummary(UserDepartment userDepartment) {
+        UserDepartmentSummary summary = new UserDepartmentSummary();
+        summary.setId(userDepartment.getDepartmentId()); // Use departmentId as id for frontend compatibility
+        summary.setRole(userDepartment.getRole());
+        
+        // Safely get department name
+        try {
+            Department department = departmentRepository.findById(userDepartment.getDepartmentId()).orElse(null);
+            if (department != null) {
+                summary.setName(department.getName());
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+            summary.setName("Unknown Department");
+        }
+        
+        return summary;
+    }
+    
+    private UserProjectSummary mapToUserProjectSummary(UserProject userProject) {
+        UserProjectSummary summary = new UserProjectSummary();
+        summary.setId(userProject.getProjectId()); // Use projectId as id for frontend compatibility
+        summary.setRole(userProject.getRole());
+        
+        // Safely get project name
+        try {
+            Project project = projectRepository.findById(userProject.getProjectId()).orElse(null);
+            if (project != null) {
+                summary.setName(project.getName());
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+            summary.setName("Unknown Project");
+        }
+        
+        return summary;
+    }
+    
+    private UserDepartmentResponse mapToUserDepartmentResponse(UserDepartment userDepartment) {
+        UserDepartmentResponse response = new UserDepartmentResponse();
+        response.setId(userDepartment.getId());
+        response.setUserId(userDepartment.getUserId());
+        response.setDepartmentId(userDepartment.getDepartmentId());
+        response.setRole(userDepartment.getRole());
+        response.setIsActive(userDepartment.getIsActive());
+        response.setAssignedAt(userDepartment.getAssignedAt());
+        response.setAssignedBy(userDepartment.getAssignedBy());
+        
+        // Safely get department name
+        try {
+            Department department = departmentRepository.findById(userDepartment.getDepartmentId()).orElse(null);
+            if (department != null) {
+                response.setDepartmentName(department.getName());
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+        }
+        
+        // Safely get assigned by user name
+        try {
+            if (userDepartment.getAssignedBy() != null) {
+                User assignedByUser = userRepository.findById(userDepartment.getAssignedBy()).orElse(null);
+                if (assignedByUser != null) {
+                    response.setAssignedByName(assignedByUser.getFullName());
+                }
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+        }
+        
+        return response;
+    }
+    
+    private UserProjectResponse mapToUserProjectResponse(UserProject userProject) {
+        UserProjectResponse response = new UserProjectResponse();
+        response.setId(userProject.getId());
+        response.setUserId(userProject.getUserId());
+        response.setProjectId(userProject.getProjectId());
+        response.setRole(userProject.getRole());
+        response.setIsActive(userProject.getIsActive());
+        response.setAssignedAt(userProject.getAssignedAt());
+        response.setAssignedBy(userProject.getAssignedBy());
+        
+        // Safely get project name
+        try {
+            Project project = projectRepository.findById(userProject.getProjectId()).orElse(null);
+            if (project != null) {
+                response.setProjectName(project.getName());
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+        }
+        
+        // Safely get assigned by user name
+        try {
+            if (userProject.getAssignedBy() != null) {
+                User assignedByUser = userRepository.findById(userProject.getAssignedBy()).orElse(null);
+                if (assignedByUser != null) {
+                    response.setAssignedByName(assignedByUser.getFullName());
+                }
+            }
+        } catch (Exception e) {
+            // Ignore any lazy loading issues
+        }
+        
+        return response;
     }
 }

@@ -1,5 +1,6 @@
 package com.duongdat.filehub.service;
 
+import com.duongdat.filehub.entity.Project;
 import com.duongdat.filehub.entity.UserDepartment;
 import com.duongdat.filehub.entity.UserProject;
 import com.duongdat.filehub.repository.UserDepartmentRepository;
@@ -95,6 +96,17 @@ public class UserAssignmentService {
         }
         if (!projectRepository.existsById(projectId)) {
             throw new RuntimeException("Project not found");
+        }
+        
+        // Get the project to check its department
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+        
+        // Check if user belongs to the department that owns this project
+        // Admin users can assign to any project regardless of department membership
+        boolean isAdmin = "ADMIN".equals(securityUtil.getCurrentUserRole());
+        if (!isAdmin && !userDepartmentRepository.existsByUserIdAndDepartmentIdAndIsActiveTrue(userId, project.getDepartmentId())) {
+            throw new RuntimeException("User can only be assigned to projects in departments where they are members");
         }
         
         // Check if assignment already exists

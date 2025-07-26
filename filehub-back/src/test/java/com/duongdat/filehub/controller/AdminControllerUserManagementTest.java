@@ -4,8 +4,8 @@ import com.duongdat.filehub.dto.request.BatchUserAssignmentRequest;
 import com.duongdat.filehub.dto.request.UserAssignmentRequest;
 import com.duongdat.filehub.dto.response.AdminUserDetailResponse;
 import com.duongdat.filehub.dto.response.UserResponse;
-import com.duongdat.filehub.entity.UserDepartment;
-import com.duongdat.filehub.entity.UserProject;
+import com.duongdat.filehub.dto.response.UserDepartmentSummary;
+import com.duongdat.filehub.dto.response.UserProjectSummary;
 import com.duongdat.filehub.service.AdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -83,22 +83,18 @@ class AdminControllerUserManagementTest {
         UserResponse userResponse = new UserResponse(1L, "testuser", "test@example.com", 
                 "Test User", "USER", true, LocalDateTime.now());
 
-        UserDepartment userDept = new UserDepartment();
+        UserDepartmentSummary userDept = new UserDepartmentSummary();
         userDept.setId(1L);
-        userDept.setUserId(1L);
-        userDept.setDepartmentId(1L);
+        userDept.setName("Engineering");
         userDept.setRole("MEMBER");
-        userDept.setIsActive(true);
 
-        UserProject userProj = new UserProject();
+        UserProjectSummary userProj = new UserProjectSummary();
         userProj.setId(1L);
-        userProj.setUserId(1L);
-        userProj.setProjectId(1L);
+        userProj.setName("Test Project");
         userProj.setRole("LEAD");
-        userProj.setIsActive(true);
 
-        List<UserDepartment> departments = Arrays.asList(userDept);
-        List<UserProject> projects = Arrays.asList(userProj);
+        List<UserDepartmentSummary> departments = Arrays.asList(userDept);
+        List<UserProjectSummary> projects = Arrays.asList(userProj);
 
         AdminUserDetailResponse detailResponse = new AdminUserDetailResponse(
                 userResponse, departments, projects);

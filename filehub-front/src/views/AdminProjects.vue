@@ -125,19 +125,6 @@
               </select>
             </div>
             <div>
-              <label for="manager-filter" class="block text-sm font-medium text-gray-700">Project Manager</label>
-              <select
-                id="manager-filter"
-                v-model="filters.managerId"
-                class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                <option value="">All Managers</option>
-                <option v-for="manager in managers" :key="manager.id" :value="manager.id">
-                  {{ manager.fullName }}
-                </option>
-              </select>
-            </div>
-            <div>
               <label for="status-filter" class="block text-sm font-medium text-gray-700">Status</label>
               <select
                 id="status-filter"
@@ -179,16 +166,10 @@
                     Department
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Manager
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Date
-                  </th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    End Date
+                    Created Date
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -209,20 +190,11 @@
                       <div class="ml-4">
                         <div class="text-sm font-medium text-gray-900">{{ project.name }}</div>
                         <div class="text-sm text-gray-500" v-if="project.description">{{ project.description }}</div>
-                        <div class="text-xs text-gray-400" v-if="project.startDate">
-                          Started: {{ formatDate(project.startDate) }}
-                        </div>
                       </div>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ getDepartmentName(project.departmentId) }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ getManagerName(project.managerId) }}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ formatDate(project.startDate) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -235,7 +207,7 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ project.endDate ? formatDate(project.endDate) : 'No end date' }}
+                    {{ formatDate(project.createdAt) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div class="flex space-x-2">
@@ -348,51 +320,14 @@
                       </div>
 
                       <div>
-                        <label for="project-manager" class="block text-sm font-medium text-gray-700">Project Manager</label>
-                        <select
-                          id="project-manager"
-                          v-model="formData.managerId"
-                          class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        >
-                          <option value="">Select a manager</option>
-                          <option v-for="manager in managers" :key="manager.id" :value="manager.id">
-                            {{ manager.fullName }}
-                          </option>
-                        </select>
-                      </div>
-
-                      <div class="grid grid-cols-2 gap-4">
-                        <div>
-                          <label for="project-start-date" class="block text-sm font-medium text-gray-700">Start Date</label>
-                          <input
-                            id="project-start-date"
-                            v-model="formData.startDate"
-                            type="date"
-                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          />
-                        </div>
-                        <div>
-                          <label for="project-end-date" class="block text-sm font-medium text-gray-700">End Date</label>
-                          <input
-                            id="project-end-date"
-                            v-model="formData.endDate"
-                            type="date"
-                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
                         <label for="project-status" class="block text-sm font-medium text-gray-700">Status</label>
                         <select
                           id="project-status"
                           v-model="formData.status"
                           class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         >
-                          <option value="PLANNING">Planning</option>
-                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="ACTIVE">Active</option>
                           <option value="COMPLETED">Completed</option>
-                          <option value="ON_HOLD">On Hold</option>
                           <option value="CANCELLED">Cancelled</option>
                         </select>
                       </div>
@@ -430,7 +365,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notification'
 import { useRouter } from 'vue-router'
 import { adminApi, type Project, type Department, type DashboardStats } from '@/services/adminApi'
-import type { User } from '@/services/api'
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
@@ -439,7 +373,6 @@ const router = useRouter()
 // Reactive data
 const projects = ref<Project[]>([])
 const departments = ref<Department[]>([])
-const managers = ref<User[]>([])
 const loading = ref(false)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -464,7 +397,6 @@ const projectStats = ref({
 const filters = ref({
   name: '',
   departmentId: '',
-  managerId: '',
   status: ''
 })
 
@@ -473,10 +405,7 @@ const formData = ref({
   name: '',
   description: '',
   departmentId: '',
-  managerId: '',
-  status: 'PLANNING' as Project['status'],
-  startDate: '',
-  endDate: ''
+  status: 'ACTIVE' as Project['status']
 })
 
 // Computed
@@ -492,11 +421,11 @@ const loadProjects = async () => {
       
       // Update project stats
       projectStats.value.totalProjects = response.data.length
-      projectStats.value.pendingProjects = response.data.filter(p => p.status === 'PLANNING').length
+      projectStats.value.pendingProjects = response.data.filter(p => p.status === 'ACTIVE').length
       projectStats.value.totalMembers = response.data.length * 3 // Rough estimate
       
       // Update active projects count in main stats
-      stats.value.activeProjects = response.data.filter(p => p.status === 'IN_PROGRESS').length
+      stats.value.activeProjects = response.data.filter(p => p.status === 'ACTIVE').length
     } else {
       notificationStore.error('Failed to Load Projects', 'Unable to fetch project data')
     }
@@ -520,39 +449,17 @@ const loadDepartments = async () => {
   }
 }
 
-const loadManagers = async () => {
-  try {
-    const response = await adminApi.getUsers({ role: 'ADMIN' })
-    if (response.success && response.data) {
-      managers.value = response.data.content
-    }
-  } catch (error) {
-    console.error('Failed to load managers:', error)
-    managers.value = []
-  }
-}
-
 const getDepartmentName = (departmentId: number): string => {
   const dept = departments.value.find(d => d.id === departmentId)
   return dept ? dept.name : 'Unknown Department'
 }
 
-const getManagerName = (managerId?: number): string => {
-  if (!managerId) return 'No manager assigned'
-  const manager = managers.value.find(m => m.id === managerId)
-  return manager ? manager.fullName : 'Unknown manager'
-}
-
 const getStatusColor = (status: Project['status']): string => {
   switch (status) {
-    case 'IN_PROGRESS':
+    case 'ACTIVE':
       return 'bg-green-100 text-green-800'
-    case 'PLANNING':
-      return 'bg-yellow-100 text-yellow-800'
     case 'COMPLETED':
       return 'bg-blue-100 text-blue-800'
-    case 'ON_HOLD':
-      return 'bg-orange-100 text-orange-800'
     case 'CANCELLED':
       return 'bg-red-100 text-red-800'
     default:
@@ -584,10 +491,7 @@ const editProject = (project: Project) => {
     name: project.name,
     description: project.description || '',
     departmentId: project.departmentId.toString(),
-    managerId: project.managerId?.toString() || '',
-    status: project.status,
-    startDate: project.startDate || '',
-    endDate: project.endDate || ''
+    status: project.status
   }
   showEditModal.value = true
 }
@@ -602,11 +506,9 @@ const updateProjectStatus = async (project: Project) => {
     loading.value = true
     // For now, we can cycle through statuses or show a modal
     const statusMap: Record<Project['status'], Project['status']> = {
-      'PLANNING': 'IN_PROGRESS',
-      'IN_PROGRESS': 'COMPLETED',
-      'COMPLETED': 'COMPLETED',
-      'ON_HOLD': 'IN_PROGRESS',
-      'CANCELLED': 'PLANNING'
+      'ACTIVE': 'COMPLETED',
+      'COMPLETED': 'CANCELLED', 
+      'CANCELLED': 'ACTIVE'
     }
     
     const newStatus = statusMap[project.status]
@@ -633,11 +535,7 @@ const saveProject = async () => {
       name: formData.value.name,
       description: formData.value.description,
       departmentId: parseInt(formData.value.departmentId),
-      managerId: parseInt(formData.value.managerId),
-      status: formData.value.status,
-      startDate: formData.value.startDate,
-      endDate: formData.value.endDate,
-      isActive: true
+      status: formData.value.status
     }
     
     if (showCreateModal.value) {
@@ -674,10 +572,7 @@ const closeModal = () => {
     name: '',
     description: '',
     departmentId: '',
-    managerId: '',
-    status: 'PLANNING',
-    startDate: '',
-    endDate: ''
+    status: 'ACTIVE'
   }
 }
 
@@ -693,8 +588,7 @@ onMounted(async () => {
   // Load initial data
   await Promise.all([
     loadProjects(),
-    loadDepartments(),
-    loadManagers()
+    loadDepartments()
   ])
   
   // Load dashboard stats

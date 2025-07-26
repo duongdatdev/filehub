@@ -234,12 +234,18 @@ const handleSubmit = async () => {
     for (const userId of userIds) {
       // Assign to department if selected
       if (selectedDepartmentId.value) {
-        await adminApi.assignUserToDepartment(userId, selectedDepartmentId.value)
+        await adminApi.assignUserToDepartment(userId, { 
+          departmentId: selectedDepartmentId.value,
+          role: 'MEMBER'
+        })
       }
 
       // Assign to projects if selected
       for (const projectId of selectedProjectIds.value) {
-        await adminApi.assignUserToProject(userId, projectId)
+        await adminApi.assignUserToProject(userId, { 
+          projectId: projectId,
+          role: 'MEMBER'
+        })
       }
       
       assignments.push({ userId, departmentId: selectedDepartmentId.value, projectIds: selectedProjectIds.value })

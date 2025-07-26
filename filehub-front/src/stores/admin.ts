@@ -344,6 +344,26 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
+    async fetchAvailableProjectsForUser(userId: number) {
+      this.projectsLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.getAvailableProjectsForUser(userId)
+        
+        if (response.success) {
+          this.availableProjects = response.data as Project[]
+        } else {
+          throw new Error(response.message || 'Failed to fetch available projects for user')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while fetching available projects for user'
+        console.error('Error fetching available projects for user:', error)
+      } finally {
+        this.projectsLoading = false
+      }
+    },
+
     async assignUserToDepartment(userId: number, departmentId: number, role: string = 'MEMBER') {
       this.userAssignmentLoading = true
       this.error = null

@@ -1,5 +1,6 @@
 package com.duongdat.filehub.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -39,10 +40,12 @@ public class UserProject {
     // Relationship mappings - using LAZY fetch to avoid circular dependencies
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Project project;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_by", insertable = false, updatable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User assignedByUser;
     
     // Constructors for convenience

@@ -1,7 +1,5 @@
 package com.duongdat.filehub.dto.response;
 
-import com.duongdat.filehub.entity.UserDepartment;
-import com.duongdat.filehub.entity.UserProject;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -20,11 +18,11 @@ public class AdminUserDetailResponse {
     private String role;
     private Boolean isActive;
     private LocalDateTime createdAt;
-    private List<UserDepartment> departments;
-    private List<UserProject> projects;
+    private List<UserDepartmentSummary> departments;
+    private List<UserProjectSummary> projects;
     
     // Constructor from UserResponse
-    public AdminUserDetailResponse(UserResponse userResponse, List<UserDepartment> departments, List<UserProject> projects) {
+    public AdminUserDetailResponse(UserResponse userResponse, List<UserDepartmentSummary> departments, List<UserProjectSummary> projects) {
         this.id = userResponse.getId();
         this.username = userResponse.getUsername();
         this.email = userResponse.getEmail();

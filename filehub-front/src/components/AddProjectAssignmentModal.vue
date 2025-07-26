@@ -39,6 +39,9 @@
                 {{ project.name }}
               </option>
             </select>
+            <p v-if="availableProjects.length === 0 && !loading" class="text-sm text-amber-600 mt-1">
+              No projects available. User must be assigned to a department first, and projects must exist in those departments.
+            </p>
           </div>
 
           <!-- Role Selection -->
@@ -71,7 +74,7 @@
             </button>
             <button
               type="submit"
-              :disabled="loading || !selectedProjectId"
+              :disabled="loading || !selectedProjectId || availableProjects.length === 0"
               class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -112,11 +115,14 @@ const selectedRole = ref('MEMBER')
 const loading = computed(() => adminStore.userAssignmentLoading)
 const availableProjects = computed(() => adminStore.availableProjects)
 
-// Watch for modal open/close to reset form
+// Watch for modal open/close to reset form and fetch projects for user
 watch(() => props.isOpen, (isOpen) => {
   if (!isOpen) {
     selectedProjectId.value = null
     selectedRole.value = 'MEMBER'
+  } else if (props.userId) {
+    // Fetch available projects for this specific user
+    adminStore.fetchAvailableProjectsForUser(props.userId)
   }
 })
 
