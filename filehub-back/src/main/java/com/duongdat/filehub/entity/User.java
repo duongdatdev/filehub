@@ -1,5 +1,6 @@
 package com.duongdat.filehub.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -40,6 +41,7 @@ public class User {
     // Relationship mappings
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Department department;
     
     // Constructors

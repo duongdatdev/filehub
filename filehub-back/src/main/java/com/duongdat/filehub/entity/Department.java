@@ -1,5 +1,6 @@
 package com.duongdat.filehub.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,19 +43,24 @@ public class Department {
     // Relationship mappings
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id", insertable = false, updatable = false)
+    @JsonIgnore
     private User manager;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Department parent;
     
     @OneToMany(mappedBy = "parent", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Department> subDepartments;
     
     @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<User> users;
     
     @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Project> projects;
     
     @PrePersist

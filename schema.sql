@@ -23,8 +23,7 @@ CREATE TABLE users (
     full_name VARCHAR(255),
     role VARCHAR(20) NOT NULL DEFAULT 'USER', -- 'USER', 'ADMIN' - Enum value stored as string
     department_id BIGINT NULL,
-    is_active BOOLEAN DEFAULT TRUE, -- User active status for admin management
-    last_login TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id)
@@ -39,84 +38,82 @@ CREATE TABLE projects (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     department_id BIGINT NOT NULL,
-    manager_id BIGINT NULL,
-    start_date DATE,
-    end_date DATE,
-    status VARCHAR(20) DEFAULT 'PLANNING', -- 'PLANNING', 'ACTIVE', 'COMPLETED', 'CANCELLED'
-    priority VARCHAR(20) DEFAULT 'MEDIUM', -- 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
-    budget DECIMAL(15,2),
-    is_active BOOLEAN DEFAULT TRUE,
+    status VARCHAR(20) DEFAULT 'ACTIVE', -- 'ACTIVE', 'COMPLETED', 'CANCELLED'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (department_id) REFERENCES departments(id),
-    FOREIGN KEY (manager_id) REFERENCES users(id)
+    FOREIGN KEY (department_id) REFERENCES departments(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bảng danh mục file (file_categories)
-CREATE TABLE file_categories (
+-- Bảng danh mục file theo phòng ban (department_categories)
+CREATE TABLE department_categories (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
     description TEXT,
+    department_id BIGINT NOT NULL,
     color VARCHAR(7), -- HEX color code cho UI
     icon VARCHAR(50), -- Icon class name
-    parent_id BIGINT NULL,
     display_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_id) REFERENCES file_categories(id)
+    FOREIGN KEY (department_id) REFERENCES departments(id),
+    UNIQUE KEY unique_dept_category (department_id, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bảng loại file (file_types)
+CREATE TABLE file_types (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) UNIQUE NOT NULL, -- 'DOCUMENT', 'IMAGE', 'VIDEO', 'SLIDE', 'SOURCE_CODE', 'OTHER'
+    description TEXT,
+    allowed_extensions JSON, -- ['pdf', 'doc', 'docx'] for DOCUMENT
+    color VARCHAR(7), -- HEX color code
+    icon VARCHAR(50), -- Icon class name
+    max_size BIGINT, -- Max file size in bytes for this type
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng file (files)
 CREATE TABLE files (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
     original_filename VARCHAR(255) NOT NULL,
     stored_filename VARCHAR(255) UNIQUE NOT NULL,
     file_path VARCHAR(500) NOT NULL,
     file_size BIGINT NOT NULL,
     content_type VARCHAR(100) NOT NULL, -- MIME type
-    file_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hash
-    category_id BIGINT NULL,
-    department_id BIGINT NULL,
-    project_id BIGINT NULL,
-    title VARCHAR(255),
+    file_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hash để tránh duplicate
+    
+    -- Core classifications
+    uploader_id BIGINT NOT NULL, -- Người upload file
+    department_id BIGINT NOT NULL, -- Phòng ban sở hữu file
+    department_category_id BIGINT NULL, -- Phân loại nội bộ của phòng ban
+    file_type_id BIGINT NOT NULL, -- Loại file (Document, Image, Video, etc.)
+    project_id BIGINT NULL, -- Dự án (nếu có)
+    
+    -- File metadata
+    title VARCHAR(255), -- Tiêu đề tùy chỉnh
     description TEXT,
-    tags JSON, -- JSON type trong MySQL 8.0+
-    visibility VARCHAR(20) DEFAULT 'PRIVATE', -- 'PRIVATE', 'PUBLIC', 'SHARED'
+    tags JSON, -- Tags để tìm kiếm
+    
+    -- Sharing permissions
+    visibility VARCHAR(20) DEFAULT 'PRIVATE', -- 'PRIVATE', 'DEPARTMENT', 'PUBLIC'
+    
+    -- System fields
     download_count BIGINT DEFAULT 0,
-    version INTEGER DEFAULT 1, -- File versioning
     is_deleted BOOLEAN DEFAULT FALSE, -- Soft delete
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
-    -- Google Drive specific fields
-    drive_file_id VARCHAR(255), -- Google Drive file ID for primary storage
-    drive_folder_id VARCHAR(255), -- Google Drive folder ID (optional)
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (category_id) REFERENCES file_categories(id),
+    
+    -- Google Drive integration (optional)
+    drive_file_id VARCHAR(255), -- Google Drive file ID
+    drive_folder_id VARCHAR(255), -- Google Drive folder ID
+    
+    FOREIGN KEY (uploader_id) REFERENCES users(id),
     FOREIGN KEY (department_id) REFERENCES departments(id),
+    FOREIGN KEY (department_category_id) REFERENCES department_categories(id),
+    FOREIGN KEY (file_type_id) REFERENCES file_types(id),
     FOREIGN KEY (project_id) REFERENCES projects(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Bảng AI suggestions (ai_suggestions)
-CREATE TABLE ai_suggestions (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    file_id BIGINT NOT NULL,
-    suggestion_type VARCHAR(20) NOT NULL, -- 'CATEGORY', 'TAGS', 'TITLE'
-    suggested_category_id BIGINT NULL,
-    suggested_title VARCHAR(255),
-    suggested_tags JSON, -- JSON array of suggested tags
-    confidence_score DECIMAL(5,4), -- 0.0000 to 1.0000
-    ai_provider VARCHAR(50), -- 'OPENAI', 'CLAUDE', etc.
-    ai_model VARCHAR(100), -- Model version
-    status VARCHAR(20) DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'REJECTED'
-    processed_by BIGINT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processed_at TIMESTAMP NULL,
-    FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
-    FOREIGN KEY (suggested_category_id) REFERENCES file_categories(id),
-    FOREIGN KEY (processed_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng lịch sử truy cập file (file_access_logs)
@@ -127,27 +124,26 @@ CREATE TABLE file_access_logs (
     action VARCHAR(50) NOT NULL, -- 'VIEW', 'DOWNLOAD', 'UPDATE', 'DELETE'
     ip_address VARCHAR(45), -- IPv4 và IPv6
     user_agent TEXT,
-    request_time BIGINT, -- Response time in milliseconds
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bảng chia sẻ file (file_shares) - Bonus feature
+-- Bảng chia sẻ file cá nhân (file_shares)
 CREATE TABLE file_shares (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
     file_id BIGINT NOT NULL,
-    shared_by BIGINT NOT NULL,
-    shared_with BIGINT NULL, -- NULL = public share
-    share_token VARCHAR(255) UNIQUE, -- For public sharing
-    permissions VARCHAR(20) DEFAULT 'READ', -- 'READ', 'WRITE'
-    expires_at TIMESTAMP NULL,
+    shared_by BIGINT NOT NULL, -- Người chia sẻ
+    shared_with BIGINT NOT NULL, -- Người được chia sẻ
+    permissions VARCHAR(20) DEFAULT 'read', -- 'read', 'write'
+    expires_at TIMESTAMP NULL, -- Ngày hết hạn (optional)
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,
     FOREIGN KEY (shared_by) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (shared_with) REFERENCES users(id) ON DELETE CASCADE
-);
+    FOREIGN KEY (shared_with) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_file_share (file_id, shared_by, shared_with)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng cấu hình hệ thống (system_configs)
 CREATE TABLE system_configs (
@@ -161,20 +157,6 @@ CREATE TABLE system_configs (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Bảng thông báo (notifications) - Cho tương lai
-CREATE TABLE notifications (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    message TEXT,
-    type VARCHAR(50) DEFAULT 'INFO', -- 'INFO', 'WARNING', 'ERROR', 'SUCCESS'
-    is_read BOOLEAN DEFAULT FALSE,
-    related_entity_type VARCHAR(50), -- 'FILE', 'USER', etc.
-    related_entity_id BIGINT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Indexes để tối ưu performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
@@ -184,33 +166,28 @@ CREATE INDEX idx_users_department_id ON users(department_id);
 CREATE INDEX idx_departments_parent_id ON departments(parent_id);
 CREATE INDEX idx_departments_manager_id ON departments(manager_id);
 CREATE INDEX idx_projects_department_id ON projects(department_id);
-CREATE INDEX idx_projects_manager_id ON projects(manager_id);
 CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_files_user_id ON files(user_id);
-CREATE INDEX idx_files_category_id ON files(category_id);
+CREATE INDEX idx_department_categories_dept_id ON department_categories(department_id);
+CREATE INDEX idx_files_uploader_id ON files(uploader_id);
 CREATE INDEX idx_files_department_id ON files(department_id);
+CREATE INDEX idx_files_department_category_id ON files(department_category_id);
+CREATE INDEX idx_files_file_type_id ON files(file_type_id);
 CREATE INDEX idx_files_project_id ON files(project_id);
 CREATE INDEX idx_files_hash ON files(file_hash);
 CREATE INDEX idx_files_uploaded_at ON files(uploaded_at);
 CREATE INDEX idx_files_visibility ON files(visibility);
 CREATE INDEX idx_files_deleted ON files(is_deleted);
-CREATE INDEX idx_ai_suggestions_file_id ON ai_suggestions(file_id);
-CREATE INDEX idx_ai_suggestions_status ON ai_suggestions(status);
 CREATE INDEX idx_file_access_logs_file_id ON file_access_logs(file_id);
 CREATE INDEX idx_file_access_logs_user_id ON file_access_logs(user_id);
 CREATE INDEX idx_file_access_logs_created_at ON file_access_logs(created_at);
 CREATE INDEX idx_file_shares_file_id ON file_shares(file_id);
-CREATE INDEX idx_file_shares_token ON file_shares(share_token);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_read ON notifications(is_read);
+CREATE INDEX idx_file_shares_shared_with ON file_shares(shared_with);
 
--- JSON indexes cho MySQL 8.0+ (cho tags và suggestions)
+-- JSON indexes cho MySQL 8.0+ (cho tags)
 -- MySQL sử dụng functional indexes cho JSON
 ALTER TABLE files ADD INDEX idx_files_tags_functional ((CAST(tags AS CHAR(255) ARRAY)));
-ALTER TABLE ai_suggestions ADD INDEX idx_ai_suggestions_tags_functional ((CAST(suggested_tags AS CHAR(255) ARRAY)));
 
 -- Insert dữ liệu mặc định
--- Note: roles table removed - using enum directly in users table
 
 -- Insert demo departments
 INSERT INTO departments (name, description, is_active, created_at, updated_at) VALUES 
@@ -220,21 +197,45 @@ INSERT INTO departments (name, description, is_active, created_at, updated_at) V
 ('Finance Department', 'Financial Management and Accounting', true, NOW(), NOW()),
 ('Operations Department', 'Business Operations and Process Management', true, NOW(), NOW());
 
-INSERT INTO file_categories (name, description, color, icon, display_order) VALUES 
-('Documents', 'Tài liệu văn bản (PDF, DOC, TXT)', '#2196F3', 'document', 1),
-('Images', 'Hình ảnh và đồ họa', '#4CAF50', 'image', 2),
-('Videos', 'Video và multimedia', '#FF9800', 'video', 3),
-('Audio', 'File âm thanh và nhạc', '#9C27B0', 'audio', 4),
-('Archives', 'File nén và lưu trữ', '#607D8B', 'archive', 5),
-('Code', 'Mã nguồn và scripts', '#FF5722', 'code', 6),
-('Others', 'Loại file khác', '#9E9E9E', 'file', 7);
+-- Insert file types
+INSERT INTO file_types (name, description, allowed_extensions, color, icon, max_size) VALUES 
+('DOCUMENT', 'Documents (PDF, Word, Text)', '["pdf", "doc", "docx", "txt", "rtf"]', '#2196F3', 'document', 104857600),
+('IMAGE', 'Images and Graphics', '["jpg", "jpeg", "png", "gif", "bmp", "svg"]', '#4CAF50', 'image', 52428800),
+('VIDEO', 'Video and Multimedia', '["mp4", "avi", "mov", "wmv", "flv"]', '#FF9800', 'video', 524288000),
+('SLIDE', 'Presentations', '["ppt", "pptx", "odp"]', '#9C27B0', 'presentation', 104857600),
+('SOURCE_CODE', 'Source Code and Archives', '["zip", "rar", "7z", "tar", "gz", "java", "js", "css", "html", "py", "cpp"]', '#FF5722', 'code', 209715200),
+('OTHER', 'Other File Types', '["csv", "xml", "json", "log"]', '#9E9E9E', 'file', 52428800);
+
+-- Insert department categories for each department
+INSERT INTO department_categories (name, description, department_id, color, icon, display_order) VALUES 
+-- HR Department Categories
+('Contracts', 'Employment contracts and agreements', 3, '#1976D2', 'contract', 1),
+('Policies', 'Company policies and procedures', 3, '#388E3C', 'policy', 2),
+('Recruitment', 'Recruitment documents and resumes', 3, '#F57C00', 'recruitment', 3),
+
+-- IT Department Categories  
+('Technical Documents', 'Technical specifications and documentation', 1, '#5D4037', 'tech-doc', 1),
+('Meeting Minutes', 'Meeting notes and minutes', 1, '#7B1FA2', 'meeting', 2),
+('Maintenance Requests', 'System maintenance and support requests', 1, '#D32F2F', 'maintenance', 3),
+
+-- Marketing Department Categories
+('Campaigns', 'Marketing campaigns and materials', 2, '#E91E63', 'campaign', 1),
+('Research', 'Market research and analysis', 2, '#00796B', 'research', 2),
+('Brand Assets', 'Brand guidelines and assets', 2, '#FF5722', 'brand', 3),
+
+-- Finance Department Categories
+('Budgets', 'Budget documents and financial plans', 4, '#2E7D32', 'budget', 1),
+('Reports', 'Financial reports and statements', 4, '#1565C0', 'report', 2),
+('Invoices', 'Invoices and billing documents', 4, '#E65100', 'invoice', 3),
+
+-- Operations Department Categories
+('Procedures', 'Operational procedures and workflows', 5, '#6A1B9A', 'procedure', 1),
+('Quality Control', 'Quality assurance documents', 5, '#00838F', 'quality', 2),
+('Training', 'Training materials and guides', 5, '#558B2F', 'training', 3);
 
 INSERT INTO system_configs (config_key, config_value, data_type, description, is_public) VALUES 
 ('file.max-size', '104857600', 'NUMBER', 'Kích thước file tối đa (100MB)', true),
-('file.allowed-types', '["pdf","doc","docx","txt","jpg","jpeg","png","gif","mp4","avi","mp3","wav","zip","rar","json","xml","csv"]', 'JSON', 'Các loại file được phép upload', true),
-('ai.enabled', 'true', 'BOOLEAN', 'Bật/tắt tính năng AI gợi ý', false),
-('ai.provider', 'openai', 'STRING', 'Nhà cung cấp AI service', false),
-('ai.confidence-threshold', '0.7', 'NUMBER', 'Ngưỡng độ tin cậy tối thiểu', false),
+('file.allowed-types', '["pdf","doc","docx","txt","jpg","jpeg","png","gif","mp4","avi","mp3","wav","zip","rar","json","xml","csv","ppt","pptx"]', 'JSON', 'Các loại file được phép upload', true),
 ('storage.path', '/app/uploads', 'STRING', 'Đường dẫn lưu trữ file', false),
 ('app.name', 'File Management System', 'STRING', 'Tên ứng dụng', true),
 ('app.version', '1.0.0', 'STRING', 'Phiên bản ứng dụng', true);
@@ -250,9 +251,9 @@ UPDATE departments SET manager_id = 1 WHERE id = 1; -- Admin manages IT
 UPDATE departments SET manager_id = 1 WHERE id = 2; -- Admin manages Marketing (temp)
 
 -- Insert demo projects
-INSERT INTO projects (name, description, department_id, manager_id, start_date, end_date, status, priority, budget, is_active, created_at, updated_at) VALUES 
-('File Management System', 'Development of a comprehensive file management system with Vue.js and Spring Boot', 1, 1, '2024-01-01', '2024-12-31', 'ACTIVE', 'HIGH', 50000.00, true, NOW(), NOW()),
-('Website Redesign', 'Complete redesign of company website with modern UI/UX', 2, 1, '2024-02-01', '2024-06-30', 'ACTIVE', 'MEDIUM', 25000.00, true, NOW(), NOW()),
-('Employee Onboarding System', 'Digital transformation of employee onboarding process', 3, 1, '2024-03-01', '2024-09-30', 'PLANNING', 'MEDIUM', 15000.00, true, NOW(), NOW()),
-('Budget Management Tool', 'Internal tool for budget tracking and financial reporting', 4, 1, '2024-04-01', '2024-10-31', 'PLANNING', 'HIGH', 30000.00, true, NOW(), NOW()),
-('Process Optimization', 'Analysis and optimization of current business processes', 5, 1, '2024-05-01', '2024-11-30', 'PLANNING', 'LOW', 10000.00, true, NOW(), NOW());
+INSERT INTO projects (name, description, department_id, status, created_at, updated_at) VALUES 
+('File Management System', 'Development of a comprehensive file management system with Vue.js and Spring Boot', 1, 'ACTIVE', NOW(), NOW()),
+('Website Redesign', 'Complete redesign of company website with modern UI/UX', 2, 'ACTIVE', NOW(), NOW()),
+('Employee Onboarding System', 'Digital transformation of employee onboarding process', 3, 'ACTIVE', NOW(), NOW()),
+('Budget Management Tool', 'Internal tool for budget tracking and financial reporting', 4, 'ACTIVE', NOW(), NOW()),
+('Process Optimization', 'Analysis and optimization of current business processes', 5, 'ACTIVE', NOW(), NOW());

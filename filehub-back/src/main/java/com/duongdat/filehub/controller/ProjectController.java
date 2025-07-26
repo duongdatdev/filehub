@@ -34,17 +34,14 @@ public class ProjectController {
     public ResponseEntity<ApiResponse<PageResponse<Project>>> getProjectsWithFilters(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) Long managerId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String priority,
-            @RequestParam(required = false) Boolean isActive,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
         try {
             PageResponse<Project> projects = projectService.getProjectsWithFilters(
-                name, departmentId, managerId, status, priority, isActive, page, size, sortBy, sortDirection);
+                name, departmentId, status, page, size, sortBy, sortDirection);
             return ResponseEntity.ok(ApiResponse.success("Projects retrieved successfully", projects));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -74,45 +71,12 @@ public class ProjectController {
         }
     }
     
-    @GetMapping("/manager/{managerId}")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<Project>>> getProjectsByManager(@PathVariable Long managerId) {
-        try {
-            List<Project> projects = projectService.getProjectsByManager(managerId);
-            return ResponseEntity.ok(ApiResponse.success("Projects retrieved successfully", projects));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-    
     @GetMapping("/status/{status}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<Project>>> getProjectsByStatus(@PathVariable String status) {
         try {
             List<Project> projects = projectService.getProjectsByStatus(status);
             return ResponseEntity.ok(ApiResponse.success("Projects retrieved successfully", projects));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-    
-    @GetMapping("/overdue")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<Project>>> getOverdueProjects() {
-        try {
-            List<Project> projects = projectService.getOverdueProjects();
-            return ResponseEntity.ok(ApiResponse.success("Overdue projects retrieved successfully", projects));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
-    }
-    
-    @GetMapping("/due-soon")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<Project>>> getProjectsDueSoon(@RequestParam(defaultValue = "7") int days) {
-        try {
-            List<Project> projects = projectService.getProjectsDueSoon(days);
-            return ResponseEntity.ok(ApiResponse.success("Projects due soon retrieved successfully", projects));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

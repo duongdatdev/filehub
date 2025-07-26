@@ -34,14 +34,15 @@ public class FileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
+            @RequestParam(value = "departmentCategoryId", required = false) Long departmentCategoryId,
             @RequestParam(value = "departmentId", required = false) Long departmentId,
             @RequestParam(value = "projectId", required = false) Long projectId,
+            @RequestParam(value = "fileTypeId", required = false) Long fileTypeId,
             @RequestParam(value = "tags", required = false) String tags,
             @RequestParam(value = "visibility", defaultValue = "PRIVATE") String visibility) {
         try {
-            log.debug("File upload request received - File: {}, Title: {}, Description: {}, CategoryId: {}, DepartmentId: {}, ProjectId: {}, Tags: {}, Visibility: {}", 
-                      file != null ? file.getOriginalFilename() : "null", title, description, categoryId, departmentId, projectId, tags, visibility);
+            log.debug("File upload request received - File: {}, Title: {}, Description: {}, DepartmentCategoryId: {}, DepartmentId: {}, ProjectId: {}, FileTypeId: {}, Tags: {}, Visibility: {}", 
+                      file != null ? file.getOriginalFilename() : "null", title, description, departmentCategoryId, departmentId, projectId, fileTypeId, tags, visibility);
             
             // Validate file parameter
             if (file == null || file.isEmpty()) {
@@ -53,9 +54,10 @@ public class FileController {
             FileUploadRequest request = new FileUploadRequest();
             request.setTitle(title != null && !title.trim().isEmpty() ? title.trim() : file.getOriginalFilename());
             request.setDescription(description != null ? description.trim() : null);
-            request.setCategoryId(categoryId);
+            request.setDepartmentCategoryId(departmentCategoryId);
             request.setDepartmentId(departmentId);
             request.setProjectId(projectId);
+            request.setFileTypeId(fileTypeId);
             // Handle tags - set to null if empty to avoid JSON parsing issues
             request.setTags(tags != null && !tags.trim().isEmpty() ? tags.trim() : null);
             request.setVisibility(visibility != null ? visibility.toUpperCase() : "PRIVATE");
@@ -80,9 +82,10 @@ public class FileController {
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<FileResponse>>> getUserFiles(
             @RequestParam(required = false) String filename,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long departmentCategoryId,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long fileTypeId,
             @RequestParam(required = false) String contentType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -93,7 +96,7 @@ public class FileController {
                     .orElseThrow(() -> new RuntimeException("User not authenticated"));
             
             PageResponse<FileResponse> files = fileService.getUserFiles(
-                    userId, filename, categoryId, departmentId, projectId, contentType, page, size, sortBy, sortDirection);
+                    userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType, page, size, sortBy, sortDirection);
             return ResponseEntity.ok(ApiResponse.success("Files retrieved successfully", files));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
@@ -104,10 +107,11 @@ public class FileController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<FileResponse>>> getAllFilesWithFilters(
             @RequestParam(required = false) String filename,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long departmentCategoryId,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long fileTypeId,
             @RequestParam(required = false) String contentType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -115,7 +119,7 @@ public class FileController {
             @RequestParam(defaultValue = "DESC") String sortDirection) {
         try {
             PageResponse<FileResponse> files = fileService.getAllFilesWithFilters(
-                    filename, categoryId, departmentId, projectId, userId, contentType, page, size, sortBy, sortDirection);
+                    filename, departmentCategoryId, departmentId, projectId, userId, fileTypeId, contentType, page, size, sortBy, sortDirection);
             return ResponseEntity.ok(ApiResponse.success("Files retrieved successfully", files));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

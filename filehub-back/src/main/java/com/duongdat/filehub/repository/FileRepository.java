@@ -14,55 +14,92 @@ import java.util.Optional;
 @Repository
 public interface FileRepository extends JpaRepository<File, Long> {
     
-    List<File> findByUserIdAndIsDeletedFalse(Long userId);
+    // Basic file queries
+    List<File> findByUploaderIdAndIsDeletedFalse(Long uploaderId);
     
-    Page<File> findByUserIdAndIsDeletedFalse(Long userId, Pageable pageable);
+    Page<File> findByUploaderIdAndIsDeletedFalse(Long uploaderId, Pageable pageable);
     
-    Optional<File> findByIdAndUserIdAndIsDeletedFalse(Long id, Long userId);
+    Optional<File> findByIdAndUploaderIdAndIsDeletedFalse(Long id, Long uploaderId);
     
     Optional<File> findByFileHash(String fileHash);
     
     Optional<File> findByDriveFileId(String driveFileId);
     
-    List<File> findByCategoryIdAndIsDeletedFalse(Long categoryId);
+    // Department-based queries
+    List<File> findByDepartmentIdAndIsDeletedFalse(Long departmentId);
     
-    @Query("SELECT f FROM File f WHERE f.userId = :userId AND f.isDeleted = false AND " +
+    List<File> findByDepartmentCategoryIdAndIsDeletedFalse(Long departmentCategoryId);
+    
+    // Project-based queries
+    List<File> findByProjectIdAndIsDeletedFalse(Long projectId);
+    
+    // File type queries
+    List<File> findByFileTypeIdAndIsDeletedFalse(Long fileTypeId);
+    
+    // Visibility queries
+    List<File> findByVisibilityAndIsDeletedFalse(String visibility);
+    
+    @Query("SELECT f FROM File f WHERE f.departmentId = :departmentId AND f.visibility = 'DEPARTMENT' AND f.isDeleted = false")
+    List<File> findDepartmentVisibleFiles(@Param("departmentId") Long departmentId);
+    
+    @Query("SELECT f FROM File f WHERE f.visibility = 'PUBLIC' AND f.isDeleted = false")
+    List<File> findPublicFiles();
+    
+    // Complex filter query for users
+    @Query("SELECT f FROM File f WHERE f.uploaderId = :uploaderId AND f.isDeleted = false AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
-           "(:categoryId IS NULL OR f.categoryId = :categoryId) AND " +
+           "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
            "(:departmentId IS NULL OR f.departmentId = :departmentId) AND " +
            "(:projectId IS NULL OR f.projectId = :projectId) AND " +
+           "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
            "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
-    Page<File> findFilesWithFilters(@Param("userId") Long userId,
+    Page<File> findFilesWithFilters(@Param("uploaderId") Long uploaderId,
                                   @Param("filename") String filename,
-                                  @Param("categoryId") Long categoryId,
+                                  @Param("departmentCategoryId") Long departmentCategoryId,
                                   @Param("departmentId") Long departmentId,
                                   @Param("projectId") Long projectId,
+                                  @Param("fileTypeId") Long fileTypeId,
                                   @Param("contentType") String contentType,
                                   Pageable pageable);
     
     // Admin query for all files with filters
     @Query("SELECT f FROM File f WHERE f.isDeleted = false AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
-           "(:categoryId IS NULL OR f.categoryId = :categoryId) AND " +
+           "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
            "(:departmentId IS NULL OR f.departmentId = :departmentId) AND " +
            "(:projectId IS NULL OR f.projectId = :projectId) AND " +
-           "(:userId IS NULL OR f.userId = :userId) AND " +
+           "(:uploaderId IS NULL OR f.uploaderId = :uploaderId) AND " +
+           "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
            "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
     Page<File> findAllFilesWithFilters(@Param("filename") String filename,
-                                     @Param("categoryId") Long categoryId,
+                                     @Param("departmentCategoryId") Long departmentCategoryId,
                                      @Param("departmentId") Long departmentId,
                                      @Param("projectId") Long projectId,
-                                     @Param("userId") Long userId,
+                                     @Param("uploaderId") Long uploaderId,
+                                     @Param("fileTypeId") Long fileTypeId,
                                      @Param("contentType") String contentType,
                                      Pageable pageable);
-                                     
-    List<File> findByDepartmentIdAndIsDeletedFalse(Long departmentId);
     
-    List<File> findByProjectIdAndIsDeletedFalse(Long projectId);
+    // Statistics queries
+    @Query("SELECT SUM(f.fileSize) FROM File f WHERE f.uploaderId = :uploaderId AND f.isDeleted = false")
+    Long getTotalFileSizeByUser(@Param("uploaderId") Long uploaderId);
     
-    @Query("SELECT SUM(f.fileSize) FROM File f WHERE f.userId = :userId AND f.isDeleted = false")
-    Long getTotalFileSizeByUser(@Param("userId") Long userId);
+    @Query("SELECT COUNT(f) FROM File f WHERE f.uploaderId = :uploaderId AND f.isDeleted = false")
+    Long getTotalFileCountByUser(@Param("uploaderId") Long uploaderId);
     
-    @Query("SELECT COUNT(f) FROM File f WHERE f.userId = :userId AND f.isDeleted = false")
-    Long getTotalFileCountByUser(@Param("userId") Long userId);
+    @Query("SELECT COUNT(f) FROM File f WHERE f.departmentId = :departmentId AND f.isDeleted = false")
+    Long getFileCountByDepartment(@Param("departmentId") Long departmentId);
+    
+    @Query("SELECT COUNT(f) FROM File f WHERE f.projectId = :projectId AND f.isDeleted = false")
+    Long getFileCountByProject(@Param("projectId") Long projectId);
+    
+    @Query("SELECT COUNT(f) FROM File f WHERE f.fileTypeId = :fileTypeId AND f.isDeleted = false")
+    Long getFileCountByFileType(@Param("fileTypeId") Long fileTypeId);
+    
+    // Recent files
+    @Query("SELECT f FROM File f WHERE f.uploaderId = :uploaderId AND f.isDeleted = false ORDER BY f.uploadedAt DESC")
+    List<File> findRecentFilesByUser(@Param("uploaderId") Long uploaderId, Pageable pageable);
+    
+    @Query("SELECT f FROM File f WHERE f.departmentId = :departmentId AND f.isDeleted = false ORDER BY f.uploadedAt DESC")
+    List<File> findRecentFilesByDepartment(@Param("departmentId") Long departmentId, Pageable pageable);
 }

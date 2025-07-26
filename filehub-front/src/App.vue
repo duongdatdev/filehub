@@ -36,6 +36,9 @@
         </div>
       </div>
     </footer>
+
+    <!-- Global Notification Container -->
+    <NotificationContainer />
   </div>
 </template>
 
@@ -44,6 +47,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import NavBar from '@/components/NavBar.vue'
+import NotificationContainer from '@/components/NotificationContainer.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()

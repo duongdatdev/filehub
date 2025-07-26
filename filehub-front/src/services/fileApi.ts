@@ -4,11 +4,12 @@ import apiService, { type ApiResponse } from './api'
 export interface FileUploadRequest {
   title?: string
   description?: string
-  categoryId?: number
+  departmentCategoryId?: number
   departmentId?: number
   projectId?: number
+  fileTypeId?: number
   tags?: string
-  visibility?: 'PRIVATE' | 'PUBLIC' | 'SHARED'
+  visibility?: 'PRIVATE' | 'DEPARTMENT' | 'PUBLIC'
 }
 
 export interface FileResponse {
@@ -18,19 +19,30 @@ export interface FileResponse {
   description?: string
   fileSize: number
   contentType: string
+  fileHash: string
+  uploaderId: number
+  departmentId: number
+  departmentCategoryId?: number
+  fileTypeId: number
+  projectId?: number
   visibility: string
   downloadCount: number
-  version: number
+  isDeleted: boolean
   uploadedAt: string
   updatedAt: string
-  categoryId?: number
-  categoryName?: string
-  departmentId?: number
-  departmentName?: string
-  projectId?: number
-  projectName?: string
+  deletedAt?: string
   driveFileId?: string
   driveFolderId?: string
+  
+  // Relationship data
+  uploaderName?: string
+  departmentName?: string
+  departmentCategoryName?: string
+  fileTypeName?: string
+  projectName?: string
+  tags?: string[]
+  
+  // URLs
   downloadUrl: string
   previewUrl: string
 }
@@ -47,9 +59,10 @@ export interface PageResponse<T> {
 
 export interface FileFilters {
   filename?: string
-  categoryId?: number
+  departmentCategoryId?: number
   departmentId?: number
   projectId?: number
+  fileTypeId?: number
   contentType?: string
   page?: number
   size?: number
@@ -58,7 +71,7 @@ export interface FileFilters {
 }
 
 export interface AdminFileFilters extends FileFilters {
-  userId?: number
+  uploaderId?: number
 }
 
 class FileApiService {
@@ -80,9 +93,10 @@ class FileApiService {
     const params = new URLSearchParams()
     
     if (filters.filename) params.append('filename', filters.filename)
-    if (filters.categoryId) params.append('categoryId', filters.categoryId.toString())
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
     if (filters.departmentId) params.append('departmentId', filters.departmentId.toString())
     if (filters.projectId) params.append('projectId', filters.projectId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
     if (filters.contentType) params.append('contentType', filters.contentType)
     if (filters.page !== undefined) params.append('page', filters.page.toString())
     if (filters.size !== undefined) params.append('size', filters.size.toString())
@@ -99,10 +113,11 @@ class FileApiService {
     const params = new URLSearchParams()
     
     if (filters.filename) params.append('filename', filters.filename)
-    if (filters.categoryId) params.append('categoryId', filters.categoryId.toString())
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
     if (filters.departmentId) params.append('departmentId', filters.departmentId.toString())
     if (filters.projectId) params.append('projectId', filters.projectId.toString())
-    if (filters.userId) params.append('userId', filters.userId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
+    if (filters.uploaderId) params.append('uploaderId', filters.uploaderId.toString())
     if (filters.contentType) params.append('contentType', filters.contentType)
     if (filters.page !== undefined) params.append('page', filters.page.toString())
     if (filters.size !== undefined) params.append('size', filters.size.toString())

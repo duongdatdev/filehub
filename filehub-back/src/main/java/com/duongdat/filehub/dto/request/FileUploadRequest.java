@@ -12,13 +12,15 @@ public class FileUploadRequest {
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
     private String description;
     
-    private Long categoryId;
+    private Long departmentCategoryId;
     
     private Long departmentId;
     
     private Long projectId;
     
+    private Long fileTypeId;
+    
     private String tags;
     
-    private String visibility = "PRIVATE"; // PRIVATE, PUBLIC, SHARED
+    private String visibility = "PRIVATE"; // PRIVATE, DEPARTMENT, PUBLIC
 }

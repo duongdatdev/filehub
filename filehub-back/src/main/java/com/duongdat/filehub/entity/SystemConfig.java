@@ -1,51 +1,42 @@
 package com.duongdat.filehub.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
-@Table(name = "projects")
+@Table(name = "system_configs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Project {
+public class SystemConfig {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "name", nullable = false)
-    private String name;
+    @Column(name = "config_key", unique = true, nullable = false, length = 100)
+    private String configKey;
+    
+    @Column(name = "config_value", columnDefinition = "TEXT")
+    private String configValue;
+    
+    @Column(name = "data_type", length = 20)
+    private String dataType = "STRING"; // 'STRING', 'NUMBER', 'BOOLEAN', 'JSON'
     
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     
-    @Column(name = "department_id", nullable = false)
-    private Long departmentId;
-    
-    @Column(name = "status", length = 20)
-    private String status = "ACTIVE"; // 'ACTIVE', 'COMPLETED', 'CANCELLED'
+    @Column(name = "is_public")
+    private Boolean isPublic = false; // Can be read by frontend
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
-    // Relationship mappings
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", insertable = false, updatable = false)
-    @JsonIgnore
-    private Department department;
-    
-    @OneToMany(mappedBy = "project", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<File> files;
     
     @PrePersist
     public void prePersist() {

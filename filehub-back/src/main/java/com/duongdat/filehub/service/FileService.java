@@ -5,7 +5,9 @@ import com.duongdat.filehub.dto.response.FileResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.entity.File;
 import com.duongdat.filehub.repository.FileRepository;
-import com.duongdat.filehub.repository.FileCategoryRepository;
+import com.duongdat.filehub.repository.UserRepository;
+import com.duongdat.filehub.repository.DepartmentCategoryRepository;
+import com.duongdat.filehub.repository.FileTypeRepository;
 import com.duongdat.filehub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +30,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +37,9 @@ import java.util.UUID;
 public class FileService {
     
     private final FileRepository fileRepository;
-    private final FileCategoryRepository fileCategoryRepository;
+    private final UserRepository userRepository;
+    private final DepartmentCategoryRepository departmentCategoryRepository;
+    private final FileTypeRepository fileTypeRepository;
     private final SecurityUtil securityUtil;
     private final GoogleDriveService googleDriveService;
     
@@ -76,7 +76,7 @@ public class FileService {
         
         // Create file entity
         File file = new File();
-        file.setUserId(userId);
+        file.setUploaderId(userId);
         file.setOriginalFilename(originalFilename);
         file.setStoredFilename(storedFilename);
         file.setFileSize(multipartFile.getSize());
@@ -84,9 +84,10 @@ public class FileService {
         file.setFileHash(fileHash);
         file.setTitle(request.getTitle() != null ? request.getTitle() : originalFilename);
         file.setDescription(request.getDescription());
-        file.setCategoryId(request.getCategoryId());
+        file.setDepartmentCategoryId(request.getDepartmentCategoryId());
         file.setDepartmentId(request.getDepartmentId());
         file.setProjectId(request.getProjectId());
+        file.setFileTypeId(request.getFileTypeId());
         // Handle tags properly for JSON column - convert empty/null to null or valid JSON
         String tags = request.getTags();
         if (tags == null || tags.trim().isEmpty()) {
@@ -145,13 +146,13 @@ public class FileService {
         return convertToFileResponse(file);
     }
     
-    public PageResponse<FileResponse> getUserFiles(Long userId, String filename, Long categoryId, 
-                                                 Long departmentId, Long projectId, String contentType, 
+    public PageResponse<FileResponse> getUserFiles(Long userId, String filename, Long departmentCategoryId, 
+                                                 Long departmentId, Long projectId, Long fileTypeId, String contentType, 
                                                  int page, int size, String sortBy, String sortDirection) {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<File> filesPage = fileRepository.findFilesWithFilters(userId, filename, categoryId, departmentId, projectId, contentType, pageable);
+        Page<File> filesPage = fileRepository.findFilesWithFilters(userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType, pageable);
         
         return new PageResponse<FileResponse>(
                 filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
@@ -167,14 +168,14 @@ public class FileService {
     }
     
     // Admin method to get all files with filters
-    public PageResponse<FileResponse> getAllFilesWithFilters(String filename, Long categoryId, 
-                                                           Long departmentId, Long projectId, Long userId,
+    public PageResponse<FileResponse> getAllFilesWithFilters(String filename, Long departmentCategoryId, 
+                                                           Long departmentId, Long projectId, Long uploaderId, Long fileTypeId,
                                                            String contentType, int page, int size, 
                                                            String sortBy, String sortDirection) {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<File> filesPage = fileRepository.findAllFilesWithFilters(filename, categoryId, departmentId, projectId, userId, contentType, pageable);
+        Page<File> filesPage = fileRepository.findAllFilesWithFilters(filename, departmentCategoryId, departmentId, projectId, uploaderId, fileTypeId, contentType, pageable);
         
         return new PageResponse<FileResponse>(
                 filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
@@ -203,7 +204,7 @@ public class FileService {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        return fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
+        return fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId)
                 .map(this::convertToFileResponse);
     }
     
@@ -211,7 +212,7 @@ public class FileService {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        Optional<File> fileOpt = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId);
+        Optional<File> fileOpt = fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId);
         if (fileOpt.isPresent()) {
             File file = fileOpt.get();
             
@@ -254,7 +255,7 @@ public class FileService {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        File file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
+        File file = fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId)
                 .orElseThrow(() -> new RuntimeException("File not found"));
         
         // Primary storage: Try to download from Google Drive first
@@ -338,22 +339,38 @@ public class FileService {
         response.setDescription(file.getDescription());
         response.setFileSize(file.getFileSize());
         response.setContentType(file.getContentType());
+        response.setFileHash(file.getFileHash());
+        response.setUploaderId(file.getUploaderId());
+        response.setDepartmentId(file.getDepartmentId());
+        response.setDepartmentCategoryId(file.getDepartmentCategoryId());
+        response.setFileTypeId(file.getFileTypeId());
+        response.setProjectId(file.getProjectId());
         response.setTags(file.getTags());
         response.setVisibility(file.getVisibility());
         response.setDownloadCount(file.getDownloadCount());
-        response.setVersion(file.getVersion());
+        response.setIsDeleted(file.getIsDeleted());
         response.setUploadedAt(file.getUploadedAt());
         response.setUpdatedAt(file.getUpdatedAt());
-        response.setCategoryId(file.getCategoryId());
-        response.setDepartmentId(file.getDepartmentId());
-        response.setProjectId(file.getProjectId());
+        response.setDeletedAt(file.getDeletedAt());
         response.setDriveFileId(file.getDriveFileId());
         response.setDriveFolderId(file.getDriveFolderId());
         
-        // Set category name if category exists
-        if (file.getCategoryId() != null) {
-            fileCategoryRepository.findById(file.getCategoryId())
-                    .ifPresent(category -> response.setCategoryName(category.getName()));
+        // Set uploader name if uploader exists
+        if (file.getUploaderId() != null) {
+            userRepository.findById(file.getUploaderId())
+                    .ifPresent(user -> response.setUploaderName(user.getFullName()));
+        }
+        
+        // Set department category name if category exists
+        if (file.getDepartmentCategoryId() != null) {
+            departmentCategoryRepository.findById(file.getDepartmentCategoryId())
+                    .ifPresent(category -> response.setDepartmentCategoryName(category.getName()));
+        }
+        
+        // Set file type name if file type exists
+        if (file.getFileTypeId() != null) {
+            fileTypeRepository.findById(file.getFileTypeId())
+                    .ifPresent(fileType -> response.setFileTypeName(fileType.getName()));
         }
         
         // Set department name if department exists  

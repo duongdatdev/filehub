@@ -7,36 +7,33 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "file_categories")
+@Table(name = "file_types")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class FileCategory {
+public class FileType {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "name", unique = true, nullable = false, length = 100)
-    private String name;
+    @Column(name = "name", unique = true, nullable = false, length = 50)
+    private String name; // 'DOCUMENT', 'IMAGE', 'VIDEO', 'SLIDE', 'SOURCE_CODE', 'OTHER'
     
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     
+    @Column(name = "allowed_extensions", columnDefinition = "JSON")
+    private String allowedExtensions; // JSON array of allowed file extensions
+    
     @Column(name = "color", length = 7)
-    private String color;
+    private String color; // HEX color code
     
     @Column(name = "icon", length = 50)
-    private String icon;
+    private String icon; // Icon class name
     
-    @Column(name = "parent_id")
-    private Long parentId;
-    
-    @Column(name = "display_order")
-    private Integer displayOrder = 0;
-    
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "max_size")
+    private Long maxSize; // Max file size in bytes for this type
     
     @Column(name = "created_at")
     private LocalDateTime createdAt;

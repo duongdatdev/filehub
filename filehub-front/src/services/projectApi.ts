@@ -5,17 +5,10 @@ export interface Project {
   name: string
   description?: string
   departmentId: number
-  managerId?: number
-  startDate?: string
-  endDate?: string
-  status: string // 'PLANNING', 'ACTIVE', 'COMPLETED', 'CANCELLED'
-  priority: string // 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'
-  budget?: number
-  isActive: boolean
+  status: string // 'ACTIVE', 'COMPLETED', 'CANCELLED'
   createdAt: string
   updatedAt: string
   department?: Department
-  manager?: User
 }
 
 export interface Department {
@@ -44,10 +37,7 @@ export interface User {
 export interface ProjectFilters {
   name?: string
   departmentId?: number
-  managerId?: number
   status?: string
-  priority?: string
-  isActive?: boolean
   page?: number
   size?: number
   sortBy?: string
@@ -85,24 +75,9 @@ const projectApi = {
     return api.get(`/projects/department/${departmentId}`)
   },
 
-  // Get projects by manager
-  getByManager(managerId: number): Promise<{ data: { data: Project[] } }> {
-    return api.get(`/projects/manager/${managerId}`)
-  },
-
   // Get projects by status
   getByStatus(status: string): Promise<{ data: { data: Project[] } }> {
     return api.get(`/projects/status/${status}`)
-  },
-
-  // Get overdue projects (admin only)
-  getOverdue(): Promise<{ data: { data: Project[] } }> {
-    return api.get('/projects/overdue')
-  },
-
-  // Get projects due soon (admin only)
-  getDueSoon(days: number = 7): Promise<{ data: { data: Project[] } }> {
-    return api.get(`/projects/due-soon?days=${days}`)
   },
 
   // Create project (admin only)

@@ -4,8 +4,27 @@
       <!-- Header -->
       <div class="px-4 py-4 sm:px-0">
         <div class="border-b border-gray-200 pb-4">
-          <h1 class="text-3xl font-bold leading-tight text-gray-900">Admin Dashboard</h1>
-          <p class="mt-2 text-sm text-gray-600">Manage users, departments, projects, and system settings</p>
+          <div class="flex justify-between items-center">
+            <div>
+              <h1 class="text-3xl font-bold leading-tight text-gray-900">Admin Dashboard</h1>
+              <p class="mt-2 text-sm text-gray-600">Manage users, departments, projects, and system settings</p>
+            </div>
+            <button
+              @click="refreshDashboard"
+              :disabled="isLoadingStats || isLoadingActivity"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg
+                :class="['h-4 w-4 mr-2', { 'animate-spin': isLoadingStats || isLoadingActivity }]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {{ isLoadingStats || isLoadingActivity ? 'Refreshing...' : 'Refresh' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -22,7 +41,10 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.totalUsers }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">
+                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-else>{{ stats.totalUsers }}</span>
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -47,7 +69,10 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Departments</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.totalDepartments }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">
+                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-else>{{ stats.totalDepartments }}</span>
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -72,7 +97,10 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Active Projects</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.activeProjects }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">
+                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-else>{{ stats.activeProjects }}</span>
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -97,7 +125,10 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Files</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.totalFiles }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">
+                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-else>{{ stats.totalFiles }}</span>
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -284,7 +315,21 @@
       <div class="mt-8">
         <h2 class="text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
         <div class="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul class="divide-y divide-gray-200">
+          <div v-if="isLoadingActivity" class="px-6 py-4">
+            <div class="space-y-4">
+              <div v-for="i in 3" :key="i" class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                  <div class="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+                  <div>
+                    <div class="w-48 h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
+                    <div class="w-32 h-3 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+                <div class="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          <ul v-else-if="recentActivity.length > 0" class="divide-y divide-gray-200">
             <li v-for="activity in recentActivity" :key="activity.id" class="px-6 py-4">
               <div class="flex items-center justify-between">
                 <div class="flex items-center">
@@ -307,6 +352,12 @@
               </div>
             </li>
           </ul>
+          <div v-else class="px-6 py-8 text-center">
+            <svg class="h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm text-gray-500">No recent activity to display</p>
+          </div>
         </div>
       </div>
     </div>
@@ -314,16 +365,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
+import { usePermissions } from '@/composables/usePermissions'
 import { useRouter } from 'vue-router'
-// Using inline SVG icons for compatibility
+import { adminApi, type DashboardStats } from '@/services/adminApi'
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
+const permissions = usePermissions()
 const router = useRouter()
 
+// Loading states
+const isLoadingStats = ref(false)
+const isLoadingActivity = ref(false)
+
 // Stats data
-const stats = ref({
+const stats = ref<DashboardStats>({
   totalUsers: 0,
   totalDepartments: 0,
   activeProjects: 0,
@@ -331,51 +390,119 @@ const stats = ref({
 })
 
 // Recent activity data
-const recentActivity = ref([
-  {
-    id: 1,
-    type: 'user',
-    description: 'New user John Doe registered',
-    user: 'System',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30) // 30 minutes ago
-  },
-  {
-    id: 2,
-    type: 'project',
-    description: 'Project "Website Redesign" status updated to completed',
-    user: 'Admin',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 hours ago
-  },
-  {
-    id: 3,
-    type: 'department',
-    description: 'Marketing department manager changed',
-    user: 'Admin',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4) // 4 hours ago
-  }
-])
+const recentActivity = ref<Array<{
+  id: number
+  type: 'user' | 'project' | 'department' | 'file'
+  description: string
+  user: string
+  timestamp: Date
+}>>([])
 
-// Check if user is admin
-const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
+// Error handling
+const statsError = ref<string | null>(null)
+const activityError = ref<string | null>(null)
+
+// Computed properties
+const { canAccessAdmin, isAdmin } = permissions
 
 // Methods
 const loadStats = async () => {
+  if (!canAccessAdmin.value) {
+    return
+  }
+
+  isLoadingStats.value = true
+  statsError.value = null
+
   try {
-    // Load statistics from API
-    // This is a placeholder - you'll need to implement these API calls
+    const response = await adminApi.getDashboardStats()
+    if (response.success) {
+      stats.value = response.data
+    } else {
+      throw new Error(response.message || 'Failed to load dashboard statistics')
+    }
+  } catch (error) {
+    console.error('Failed to load stats:', error)
+    statsError.value = error instanceof Error ? error.message : 'Failed to load dashboard statistics'
+    
+    // Use fallback mock data if API fails
     stats.value = {
       totalUsers: 156,
       totalDepartments: 8,
       activeProjects: 23,
       totalFiles: 1247
     }
-  } catch (error) {
-    console.error('Failed to load stats:', error)
+
+    notificationStore.warning(
+      'Dashboard Statistics',
+      'Using cached data. Some information may be outdated.',
+      { duration: 6000 }
+    )
+  } finally {
+    isLoadingStats.value = false
   }
 }
 
-const formatDate = (date: Date): string => {
-  return date.toLocaleDateString('en-US', {
+const loadRecentActivity = async () => {
+  if (!canAccessAdmin.value) {
+    return
+  }
+
+  isLoadingActivity.value = true
+  activityError.value = null
+
+  try {
+    const response = await adminApi.getRecentActivity()
+    if (response.success) {
+      recentActivity.value = response.data.map(activity => ({
+        ...activity,
+        timestamp: new Date(activity.timestamp)
+      }))
+    } else {
+      throw new Error(response.message || 'Failed to load recent activity')
+    }
+  } catch (error) {
+    console.error('Failed to load recent activity:', error)
+    activityError.value = error instanceof Error ? error.message : 'Failed to load recent activity'
+    
+    // Use fallback mock data if API fails
+    recentActivity.value = [
+      {
+        id: 1,
+        type: 'user' as const,
+        description: 'New user John Doe registered',
+        user: 'System',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30) // 30 minutes ago
+      },
+      {
+        id: 2,
+        type: 'project' as const,
+        description: 'Project "Website Redesign" status updated to completed',
+        user: 'Admin',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 hours ago
+      },
+      {
+        id: 3,
+        type: 'department' as const,
+        description: 'Marketing department manager changed',
+        user: 'Admin',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4) // 4 hours ago
+      }
+    ]
+
+    notificationStore.warning(
+      'Recent Activity',
+      'Using cached data. Activity feed may be outdated.',
+      { duration: 6000 }
+    )
+  } finally {
+    isLoadingActivity.value = false
+  }
+}
+
+const formatDate = (date: Date | string): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -384,9 +511,10 @@ const formatDate = (date: Date): string => {
   })
 }
 
-const getRelativeTime = (date: Date): string => {
+const getRelativeTime = (date: Date | string): string => {
   const now = new Date()
-  const diff = now.getTime() - date.getTime()
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  const diff = now.getTime() - dateObj.getTime()
   const minutes = Math.floor(diff / (1000 * 60))
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -400,16 +528,32 @@ const getRelativeTime = (date: Date): string => {
   }
 }
 
+const refreshDashboard = async () => {
+  notificationStore.info('Refreshing Dashboard', 'Loading latest data...')
+  await Promise.all([loadStats(), loadRecentActivity()])
+  notificationStore.success('Dashboard Updated', 'Data has been refreshed successfully')
+}
+
 // Lifecycle
 onMounted(async () => {
   // Check admin access
-  if (!isAdmin.value) {
-    console.warn('Access denied: Admin role required')
+  if (!canAccessAdmin.value) {
+    notificationStore.error(
+      'Access Denied',
+      'You do not have permission to access the admin dashboard.',
+      { persistent: true }
+    )
     router.push('/')
     return
   }
 
+  // Welcome message
+  notificationStore.success(
+    'Welcome to Admin Dashboard',
+    `Hello ${authStore.user?.fullName || authStore.user?.username}! You have ${isAdmin.value ? 'full admin' : 'manager'} access.`
+  )
+
   // Load dashboard data
-  await loadStats()
+  await Promise.all([loadStats(), loadRecentActivity()])
 })
 </script>

@@ -95,19 +95,39 @@
                     
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Category
+                        Department Category
                       </label>
                       <select
-                        v-model="file.metadata.categoryId"
+                        v-model="file.metadata.departmentCategoryId"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        :disabled="!file.metadata.departmentId"
                       >
                         <option value="">Select a category</option>
                         <option
-                          v-for="category in categories"
+                          v-for="category in filteredDepartmentCategories(file.metadata.departmentId)"
                           :key="category.id"
                           :value="category.id"
                         >
                           {{ category.name }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        File Type
+                      </label>
+                      <select
+                        v-model="file.metadata.fileTypeId"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select a file type</option>
+                        <option
+                          v-for="fileType in fileTypes"
+                          :key="fileType.id"
+                          :value="fileType.id"
+                        >
+                          {{ fileType.name }}
                         </option>
                       </select>
                     </div>
@@ -422,18 +442,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { fileApi, type FileResponse } from '@/services/fileApi'
-import { categoryApi, type FileCategory } from '@/services/categoryApi'
+import departmentCategoryApi, { type DepartmentCategory } from '@/services/departmentCategoryApi'
 import departmentApi, { type Department } from '@/services/departmentApi'
 import projectApi, { type Project } from '@/services/projectApi'
+import fileTypeApi, { type FileType } from '@/services/fileTypeApi'
 
 // Reactive data
 const isDragOver = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const selectedFiles = ref<any[]>([])
 const files = ref<FileResponse[]>([])
-const categories = ref<FileCategory[]>([])
+const departmentCategories = ref<DepartmentCategory[]>([])
 const departments = ref<Department[]>([])
 const projects = ref<Project[]>([])
+const fileTypes = ref<FileType[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 const isUploading = ref(false)
@@ -488,9 +510,10 @@ const addFiles = (files: File[]) => {
     metadata: {
       title: '',
       description: '',
-      categoryId: '',
+      departmentCategoryId: '',
       departmentId: '',
       projectId: '',
+      fileTypeId: '',
       visibility: 'PRIVATE',
       tags: ''
     },
@@ -526,9 +549,10 @@ const uploadFiles = async () => {
       formData.append('file', file.file) // Use the original File object
       formData.append('title', file.metadata.title || file.name)
       formData.append('description', file.metadata.description)
-      formData.append('categoryId', file.metadata.categoryId)
+      formData.append('departmentCategoryId', file.metadata.departmentCategoryId)
       formData.append('departmentId', file.metadata.departmentId)
       formData.append('projectId', file.metadata.projectId)
+      formData.append('fileTypeId', file.metadata.fileTypeId)
       formData.append('visibility', file.metadata.visibility)
       formData.append('tags', file.metadata.tags)
       
@@ -570,12 +594,83 @@ const loadFiles = async () => {
   }
 }
 
-const loadCategories = async () => {
+// Load department categories for a specific department
+const loadDepartmentCategories = async (departmentId: number) => {
   try {
-    const response = await categoryApi.getCategories()
-    categories.value = response.data
+    console.log(`Loading categories for department ID: ${departmentId}`)
+    
+    // Use the user-accessible endpoint (no /all suffix)
+    const response = await departmentCategoryApi.getCategoriesByDepartment(departmentId)
+    console.log(`Department ${departmentId} categories response:`, response)
+    
+    // Check if response and data exist
+    if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      console.log(`Found ${response.data.length} categories for department ${departmentId}`)
+      // Add categories to the existing array, avoiding duplicates
+      const newCategories = response.data.filter(newCat => 
+        !departmentCategories.value.some(existingCat => existingCat.id === newCat.id)
+      )
+      departmentCategories.value.push(...newCategories)
+      console.log(`Added ${newCategories.length} new categories for department ${departmentId}`)
+    } else if (Array.isArray(response) && response.length > 0) {
+      // Handle direct array response
+      console.log(`Found ${response.length} categories (direct array) for department ${departmentId}`)
+      const newCategories = response.filter(newCat => 
+        !departmentCategories.value.some(existingCat => existingCat.id === newCat.id)
+      )
+      departmentCategories.value.push(...newCategories)
+    } else if ((response as any).data && Array.isArray((response as any).data.data) && (response as any).data.data.length > 0) {
+      // Handle nested data structure
+      const categories = (response as any).data.data
+      console.log(`Found ${categories.length} categories (nested) for department ${departmentId}`)
+      const newCategories = categories.filter((newCat: any) => 
+        !departmentCategories.value.some(existingCat => existingCat.id === newCat.id)
+      )
+      departmentCategories.value.push(...newCategories)
+    } else {
+      console.log(`No categories found for department ${departmentId} (this might be normal if no categories are configured)`)
+    }
   } catch (error) {
-    console.error('Failed to load categories:', error)
+    console.error(`Failed to load department categories for department ${departmentId}:`, error)
+  }
+}
+
+// Load all department categories for all departments
+const loadAllDepartmentCategories = async () => {
+  try {
+    console.log('Loading all department categories...')
+    console.log('Departments value before loading categories:', departments.value)
+    
+    // Clear existing categories
+    departmentCategories.value = []
+    
+    // Check if departments is properly initialized and is an array
+    if (!departments.value || !Array.isArray(departments.value)) {
+      console.warn('Departments not loaded or not an array, skipping category loading')
+      console.log('Departments type:', typeof departments.value)
+      console.log('Is array:', Array.isArray(departments.value))
+      return
+    }
+    
+    if (departments.value.length === 0) {
+      console.warn('No departments found, skipping category loading')
+      return
+    }
+    
+    console.log(`Loading categories for ${departments.value.length} departments`)
+    
+    // Load categories for each department
+    const categoryPromises = departments.value.map(department => {
+      console.log(`Queueing category load for department: ${department.name} (ID: ${department.id})`)
+      return loadDepartmentCategories(department.id)
+    })
+    
+    // Wait for all category loading to complete
+    await Promise.allSettled(categoryPromises)
+    
+    console.log(`Finished loading all department categories. Total categories loaded: ${departmentCategories.value.length}`)
+  } catch (error) {
+    console.error('Failed to load all department categories:', error)
   }
 }
 
@@ -624,16 +719,45 @@ const formatDate = (dateString: string): string => {
 // Helper function to filter projects by department
 const filteredProjects = (departmentId: string | number) => {
   if (!departmentId) return []
-  return projects.value.filter(project => project.departmentId === Number(departmentId))
+  console.log(`Filtering projects for department ${departmentId}`)
+  console.log('Available projects:', projects.value)
+  const filtered = projects.value.filter(project => project.departmentId === Number(departmentId))
+  console.log(`Found ${filtered.length} projects for department ${departmentId}:`, filtered)
+  return filtered
+}
+
+// Helper function to filter department categories by department
+const filteredDepartmentCategories = (departmentId: string | number) => {
+  if (!departmentId) return []
+  console.log(`Filtering categories for department ${departmentId}`)
+  console.log('Available categories:', departmentCategories.value)
+  const filtered = departmentCategories.value.filter(category => category.departmentId === Number(departmentId))
+  console.log(`Found ${filtered.length} categories for department ${departmentId}:`, filtered)
+  return filtered
 }
 
 // Load departments
 const loadDepartments = async () => {
   try {
     const response = await departmentApi.getAll()
-    departments.value = response.data.data
+    console.log('Departments API response:', response.data)
+    
+    // Check if response has the expected structure
+    if (response.data && response.data.data) {
+      departments.value = response.data.data
+    } else if (Array.isArray(response.data)) {
+      // Fallback if data is directly in response.data
+      departments.value = response.data
+    } else {
+      console.warn('Unexpected response structure:', response.data)
+      departments.value = []
+    }
+    
+    console.log('Loaded departments:', departments.value)
   } catch (error) {
     console.error('Failed to load departments:', error)
+    // Initialize as empty array on error to prevent iteration issues
+    departments.value = []
   }
 }
 
@@ -641,17 +765,72 @@ const loadDepartments = async () => {
 const loadProjects = async () => {
   try {
     const response = await projectApi.getAll()
-    projects.value = response.data.data
+    console.log('Projects API response:', response)
+    
+    // Check if response has the expected structure
+    if (response.data && response.data.data) {
+      projects.value = response.data.data
+    } else if (Array.isArray(response.data)) {
+      // Fallback if data is directly in response.data
+      projects.value = response.data
+    } else if (Array.isArray(response)) {
+      // Direct array response
+      projects.value = response
+    } else if ((response as any).success && Array.isArray((response as any).data)) {
+      // Standard API response structure
+      projects.value = (response as any).data
+    } else {
+      console.warn('Unexpected projects response structure:', response)
+      projects.value = []
+    }
+    
+    console.log('Loaded projects:', projects.value)
   } catch (error) {
     console.error('Failed to load projects:', error)
+    projects.value = []
+  }
+}
+
+// Load file types
+const loadFileTypes = async () => {
+  try {
+    const response = await fileTypeApi.getAllFileTypes()
+    console.log('File types API raw response:', response)
+    console.log('Response type:', typeof response)
+    console.log('Response keys:', Object.keys(response))
+    
+    // Handle different possible response structures
+    if (response.success && response.data && Array.isArray(response.data)) {
+      // Standard API response with success flag
+      console.log('Using standard API response structure')
+      fileTypes.value = response.data
+    } else if (Array.isArray(response)) {
+      // Direct array response
+      console.log('Using direct array response structure')
+      fileTypes.value = response
+    } else if ((response as any).data && Array.isArray((response as any).data.data)) {
+      // Nested data structure
+      console.log('Using nested data structure')
+      fileTypes.value = (response as any).data.data
+    } else {
+      console.warn('Unexpected file types response structure:', response)
+      fileTypes.value = []
+    }
+    
+    console.log('Final fileTypes value:', fileTypes.value)
+  } catch (error) {
+    console.error('Failed to load file types:', error)
+    fileTypes.value = []
   }
 }
 
 // Lifecycle hooks
-onMounted(() => {
+onMounted(async () => {
   loadFiles()
-  loadCategories()
-  loadDepartments()
+  await loadDepartments()
   loadProjects()
+  loadFileTypes()
+  // Load department categories for all departments after departments are loaded
+  await loadAllDepartmentCategories()
 })
 </script>

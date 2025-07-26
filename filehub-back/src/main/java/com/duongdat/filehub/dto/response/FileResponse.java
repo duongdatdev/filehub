@@ -17,20 +17,34 @@ public class FileResponse {
     private String description;
     private Long fileSize;
     private String contentType;
+    private String fileHash;
+    
+    // Core classifications  
+    private Long uploaderId;
+    private String uploaderName;
+    private Long departmentId;
+    private String departmentName;
+    private Long departmentCategoryId;
+    private String departmentCategoryName;
+    private Long fileTypeId;
+    private String fileTypeName;
+    private Long projectId;
+    private String projectName;
+    
+    // File metadata
     private String tags;
     private String visibility;
     private Long downloadCount;
-    private Integer version;
+    private Boolean isDeleted;
     private LocalDateTime uploadedAt;
     private LocalDateTime updatedAt;
-    private Long categoryId;
-    private String categoryName;
-    private Long departmentId;
-    private String departmentName;
-    private Long projectId;
-    private String projectName;
+    private LocalDateTime deletedAt;
+    
+    // Google Drive integration
     private String driveFileId;
     private String driveFolderId;
+    
+    // URLs for download/preview
     private String downloadUrl;
     private String previewUrl;
     

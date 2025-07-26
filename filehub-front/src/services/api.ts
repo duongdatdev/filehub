@@ -125,4 +125,5 @@ class ApiService {
 }
 
 export const apiService = new ApiService()
+export const api = apiService  // Named export for backward compatibility
 export default apiService

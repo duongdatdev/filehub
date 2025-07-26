@@ -8,6 +8,7 @@ import AdminUsersPage from '@/views/AdminUsersPage.vue'
 import AdminDashboard from '@/views/AdminDashboard.vue'
 import AdminDepartments from '@/views/AdminDepartments.vue'
 import AdminProjects from '@/views/AdminProjects.vue'
+import AdminAssignmentsPage from '@/views/AdminAssignmentsPage.vue'
 import FilesPage from '@/views/FilesPage.vue'
 import UITestPage from '@/views/UITestPage.vue'
 
@@ -64,6 +65,12 @@ const routes = [
     path: '/admin/projects',
     name: 'AdminProjects',
     component: AdminProjects,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/assignments',
+    name: 'AdminAssignments',
+    component: AdminAssignmentsPage,
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {

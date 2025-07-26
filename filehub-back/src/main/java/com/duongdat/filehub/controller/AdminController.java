@@ -2,9 +2,12 @@ package com.duongdat.filehub.controller;
 
 import com.duongdat.filehub.dto.request.AdminUserFilterRequest;
 import com.duongdat.filehub.dto.request.UpdateUserStatusRequest;
+import com.duongdat.filehub.dto.request.UserAssignmentRequest;
 import com.duongdat.filehub.dto.response.ApiResponse;
+import com.duongdat.filehub.dto.response.DashboardStatsResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.dto.response.UserResponse;
+import com.duongdat.filehub.dto.response.RecentActivityResponse;
 import com.duongdat.filehub.entity.Role;
 import com.duongdat.filehub.service.AdminService;
 import jakarta.validation.Valid;
@@ -12,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -62,6 +67,75 @@ public class AdminController {
         try {
             UserResponse user = adminService.updateUserStatus(id, request.getIsActive());
             return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Dashboard endpoints
+    @GetMapping("/dashboard/stats")
+    public ResponseEntity<ApiResponse<DashboardStatsResponse>> getDashboardStats() {
+        try {
+            DashboardStatsResponse stats = adminService.getDashboardStats();
+            return ResponseEntity.ok(ApiResponse.success("Dashboard stats retrieved successfully", stats));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/dashboard/recent-activity")
+    public ResponseEntity<ApiResponse<List<RecentActivityResponse>>> getRecentActivity() {
+        try {
+            List<RecentActivityResponse> activities = adminService.getRecentActivity();
+            return ResponseEntity.ok(ApiResponse.success("Recent activity retrieved successfully", activities));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // User assignment endpoints
+    @PostMapping("/users/{userId}/department")
+    public ResponseEntity<ApiResponse<UserResponse>> assignUserToDepartment(
+            @PathVariable Long userId,
+            @RequestBody UserAssignmentRequest request) {
+        try {
+            UserResponse user = adminService.assignUserToDepartment(userId, request.getDepartmentId());
+            return ResponseEntity.ok(ApiResponse.success("User assigned to department successfully", user));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/users/{userId}/projects")
+    public ResponseEntity<ApiResponse<UserResponse>> assignUserToProject(
+            @PathVariable Long userId,
+            @RequestBody UserAssignmentRequest request) {
+        try {
+            UserResponse user = adminService.assignUserToProject(userId, request.getProjectIds().get(0));
+            return ResponseEntity.ok(ApiResponse.success("User assigned to project successfully", user));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/users/{userId}/projects/{projectId}")
+    public ResponseEntity<ApiResponse<UserResponse>> removeUserFromProject(
+            @PathVariable Long userId,
+            @PathVariable Long projectId) {
+        try {
+            UserResponse user = adminService.removeUserFromProject(userId, projectId);
+            return ResponseEntity.ok(ApiResponse.success("User removed from project successfully", user));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PostMapping("/users/bulk-assign")
+    public ResponseEntity<ApiResponse<List<UserResponse>>> bulkAssignUsers(
+            @RequestBody List<UserAssignmentRequest> assignments) {
+        try {
+            List<UserResponse> users = adminService.bulkAssignUsers(assignments);
+            return ResponseEntity.ok(ApiResponse.success("Bulk assignment completed successfully", users));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
