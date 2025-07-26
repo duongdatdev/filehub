@@ -35,7 +35,7 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
         Pageable pageable
     );
     
-    @Query("SELECT COUNT(u) FROM User u WHERE u.departmentId = :departmentId")
+    @Query("SELECT COUNT(ud) FROM UserDepartment ud WHERE ud.departmentId = :departmentId AND ud.isActive = true")
     Long countUsersByDepartmentId(@Param("departmentId") Long departmentId);
     
     @Query("SELECT COUNT(p) FROM Project p WHERE p.departmentId = :departmentId")

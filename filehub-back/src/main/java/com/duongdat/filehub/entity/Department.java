@@ -55,9 +55,8 @@ public class Department {
     @JsonIgnore
     private List<Department> subDepartments;
     
-    @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<User> users;
+    // Note: User-Department relationship is now handled via UserDepartment junction table
+    // No direct mapping here anymore
     
     @OneToMany(mappedBy = "department", fetch = FetchType.LAZY)
     @JsonIgnore

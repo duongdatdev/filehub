@@ -42,6 +42,7 @@ public class FileService {
     private final FileTypeRepository fileTypeRepository;
     private final SecurityUtil securityUtil;
     private final GoogleDriveService googleDriveService;
+    private final UserAuthorizationService userAuthorizationService;
     
     @Value("${file.upload.directory:uploads}")
     private String uploadDirectory;
@@ -62,6 +63,9 @@ public class FileService {
         // Get current user
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
+        
+        // Validate upload permissions - NEW AUTHORIZATION LOGIC
+        userAuthorizationService.validateFileUploadPermissions(request.getDepartmentId(), request.getProjectId());
         
         // Check for duplicate file by hash
         String fileHash = calculateFileHash(multipartFile.getBytes());
@@ -152,7 +156,29 @@ public class FileService {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        Page<File> filesPage = fileRepository.findFilesWithFilters(userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType, pageable);
+        // Apply authorization filters
+        Page<File> filesPage;
+        if (userAuthorizationService.isUserAdmin(userId)) {
+            // Admin can see all files
+            filesPage = fileRepository.findFilesWithFilters(userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType, pageable);
+        } else {
+            // Regular users can only see files from their departments/projects
+            List<Long> accessibleDepartmentIds = userAuthorizationService.getAccessibleDepartmentIds();
+            List<Long> accessibleProjectIds = userAuthorizationService.getAccessibleProjectIds();
+            
+            // If user has no accessible departments/projects, they can only see public files
+            if (accessibleDepartmentIds.isEmpty() || (accessibleDepartmentIds.size() == 1 && accessibleDepartmentIds.get(0) == -1L)) {
+                accessibleDepartmentIds = List.of(-1L); // Use -1 as placeholder for no access
+            }
+            if (accessibleProjectIds.isEmpty() || (accessibleProjectIds.size() == 1 && accessibleProjectIds.get(0) == -1L)) {
+                accessibleProjectIds = List.of(-1L);
+            }
+            
+            // Filter by accessible departments and projects
+            filesPage = fileRepository.findFilesWithAuthorizationFilters(
+                userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType,
+                accessibleDepartmentIds, accessibleProjectIds, pageable);
+        }
         
         return new PageResponse<FileResponse>(
                 filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
@@ -191,6 +217,11 @@ public class FileService {
     }
     
     public List<FileResponse> getFilesByDepartment(Long departmentId) {
+        // Check if current user can view files in this department
+        if (!userAuthorizationService.canViewDepartmentFiles(departmentId)) {
+            throw new RuntimeException("You don't have permission to view files in this department");
+        }
+        
         List<File> files = fileRepository.findByDepartmentIdAndIsDeletedFalse(departmentId);
         return files.stream().map(this::convertToFileResponse).toList();
     }

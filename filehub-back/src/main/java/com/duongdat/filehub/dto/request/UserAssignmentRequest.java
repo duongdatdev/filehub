@@ -12,5 +12,7 @@ import java.util.List;
 public class UserAssignmentRequest {
     private Long userId;
     private Long departmentId;
-    private List<Long> projectIds;
+    private Long projectId;
+    private List<Long> projectIds; // For batch operations
+    private String role; // Role in department or project
 }

@@ -26,9 +26,6 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
     
-    @Column(name = "department_id")
-    private Long departmentId;
-    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -38,11 +35,14 @@ public class User {
     @Column(name = "is_active")
     private boolean isActive = true;
     
-    // Relationship mappings
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", insertable = false, updatable = false)
+    // Relationship mappings - Many-to-many relationships through junction tables
+    @OneToMany(mappedBy = "userId", fetch = FetchType.LAZY)
     @JsonIgnore
-    private Department department;
+    private java.util.List<UserDepartment> userDepartments;
+    
+    @OneToMany(mappedBy = "userId", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private java.util.List<UserProject> userProjects;
     
     // Constructors
     public User() {
@@ -139,20 +139,20 @@ public class User {
         isActive = active;
     }
     
-    public Long getDepartmentId() {
-        return departmentId;
+    public java.util.List<UserDepartment> getUserDepartments() {
+        return userDepartments;
     }
     
-    public void setDepartmentId(Long departmentId) {
-        this.departmentId = departmentId;
+    public void setUserDepartments(java.util.List<UserDepartment> userDepartments) {
+        this.userDepartments = userDepartments;
     }
     
-    public Department getDepartment() {
-        return department;
+    public java.util.List<UserProject> getUserProjects() {
+        return userProjects;
     }
     
-    public void setDepartment(Department department) {
-        this.department = department;
+    public void setUserProjects(java.util.List<UserProject> userProjects) {
+        this.userProjects = userProjects;
     }
     
     @PreUpdate

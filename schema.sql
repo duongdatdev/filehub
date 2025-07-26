@@ -22,15 +22,28 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL, -- BCrypt hash từ Spring Security
     full_name VARCHAR(255),
     role VARCHAR(20) NOT NULL DEFAULT 'USER', -- 'USER', 'ADMIN' - Enum value stored as string
-    department_id BIGINT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (department_id) REFERENCES departments(id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Add foreign key constraint for department manager
 ALTER TABLE departments ADD FOREIGN KEY (manager_id) REFERENCES users(id);
+
+-- Bảng quan hệ nhiều-nhiều giữa users và departments (user_departments)
+CREATE TABLE user_departments (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    department_id BIGINT NOT NULL,
+    role VARCHAR(50) DEFAULT 'MEMBER', -- 'MEMBER', 'MANAGER', 'DEPUTY_MANAGER'
+    is_active BOOLEAN DEFAULT TRUE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    assigned_by BIGINT NULL, -- Who assigned this user to department
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES users(id),
+    UNIQUE KEY unique_user_department (user_id, department_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng dự án (projects)
 CREATE TABLE projects (
@@ -42,6 +55,21 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (department_id) REFERENCES departments(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bảng quan hệ nhiều-nhiều giữa users và projects (user_projects)
+CREATE TABLE user_projects (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    project_id BIGINT NOT NULL,
+    role VARCHAR(50) DEFAULT 'MEMBER', -- 'MEMBER', 'LEAD', 'COLLABORATOR'
+    is_active BOOLEAN DEFAULT TRUE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    assigned_by BIGINT NULL, -- Who assigned this user to project
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_by) REFERENCES users(id),
+    UNIQUE KEY unique_user_project (user_id, project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Bảng danh mục file theo phòng ban (department_categories)
@@ -162,9 +190,14 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_is_active ON users(is_active);
-CREATE INDEX idx_users_department_id ON users(department_id);
 CREATE INDEX idx_departments_parent_id ON departments(parent_id);
 CREATE INDEX idx_departments_manager_id ON departments(manager_id);
+CREATE INDEX idx_user_departments_user_id ON user_departments(user_id);
+CREATE INDEX idx_user_departments_department_id ON user_departments(department_id);
+CREATE INDEX idx_user_departments_is_active ON user_departments(is_active);
+CREATE INDEX idx_user_projects_user_id ON user_projects(user_id);
+CREATE INDEX idx_user_projects_project_id ON user_projects(project_id);
+CREATE INDEX idx_user_projects_is_active ON user_projects(is_active);
 CREATE INDEX idx_projects_department_id ON projects(department_id);
 CREATE INDEX idx_projects_status ON projects(status);
 CREATE INDEX idx_department_categories_dept_id ON department_categories(department_id);
@@ -241,10 +274,29 @@ INSERT INTO system_configs (config_key, config_value, data_type, description, is
 ('app.version', '1.0.0', 'STRING', 'Phiên bản ứng dụng', true);
 
 -- Insert sample admin user for testing (password: admin123)
-INSERT INTO users (username, email, password, full_name, role, department_id, is_active, created_at, updated_at) VALUES 
-('admin', 'admin@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'System Administrator', 'ADMIN', 1, true, NOW(), NOW()),
-('user1', 'user1@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 1', 'USER', 1, true, NOW(), NOW()),
-('user2', 'user2@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 2', 'USER', 2, false, NOW(), NOW());
+INSERT INTO users (username, email, password, full_name, role, is_active, created_at, updated_at) VALUES 
+('admin', 'admin@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'System Administrator', 'ADMIN', true, NOW(), NOW()),
+('user1', 'user1@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 1', 'USER', true, NOW(), NOW()),
+('user2', 'user2@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Test User 2', 'USER', true, NOW(), NOW()),
+('hr_manager', 'hr@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'HR Manager', 'USER', true, NOW(), NOW()),
+('finance_user', 'finance@filehub.com', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM9lE5fWmBnWBoa.qR8y', 'Finance User', 'USER', true, NOW(), NOW());
+
+-- Assign users to departments
+INSERT INTO user_departments (user_id, department_id, role, is_active, assigned_at, assigned_by) VALUES 
+-- Admin in IT Department as Manager
+(1, 1, 'MANAGER', true, NOW(), 1),
+-- Admin also in Marketing (multi-department user)
+(1, 2, 'MANAGER', true, NOW(), 1),
+-- User1 in IT Department
+(2, 1, 'MEMBER', true, NOW(), 1),
+-- User2 in Marketing Department
+(3, 2, 'MEMBER', true, NOW(), 1),
+-- HR Manager in HR Department
+(4, 3, 'MANAGER', true, NOW(), 1),
+-- Finance User in Finance Department
+(5, 4, 'MEMBER', true, NOW(), 1),
+-- User1 also in HR (cross-department collaboration)
+(2, 3, 'MEMBER', true, NOW(), 1);
 
 -- Update department managers
 UPDATE departments SET manager_id = 1 WHERE id = 1; -- Admin manages IT
@@ -257,3 +309,22 @@ INSERT INTO projects (name, description, department_id, status, created_at, upda
 ('Employee Onboarding System', 'Digital transformation of employee onboarding process', 3, 'ACTIVE', NOW(), NOW()),
 ('Budget Management Tool', 'Internal tool for budget tracking and financial reporting', 4, 'ACTIVE', NOW(), NOW()),
 ('Process Optimization', 'Analysis and optimization of current business processes', 5, 'ACTIVE', NOW(), NOW());
+
+-- Assign users to projects
+INSERT INTO user_projects (user_id, project_id, role, is_active, assigned_at, assigned_by) VALUES 
+-- Admin leads File Management System project
+(1, 1, 'LEAD', true, NOW(), 1),
+-- User1 works on File Management System
+(2, 1, 'MEMBER', true, NOW(), 1),
+-- Admin also leads Website Redesign
+(1, 2, 'LEAD', true, NOW(), 1),
+-- User2 works on Website Redesign
+(3, 2, 'MEMBER', true, NOW(), 1),
+-- HR Manager leads Employee Onboarding System
+(4, 3, 'LEAD', true, NOW(), 1),
+-- User1 collaborates on Employee Onboarding (cross-project work)
+(2, 3, 'COLLABORATOR', true, NOW(), 1),
+-- Finance User leads Budget Management Tool
+(5, 4, 'LEAD', true, NOW(), 1),
+-- Admin collaborates on Budget Management
+(1, 5, 'MEMBER', true, NOW(), 1);

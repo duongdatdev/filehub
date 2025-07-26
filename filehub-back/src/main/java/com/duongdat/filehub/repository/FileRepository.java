@@ -80,6 +80,26 @@ public interface FileRepository extends JpaRepository<File, Long> {
                                      @Param("contentType") String contentType,
                                      Pageable pageable);
     
+    // Query for files with authorization filters (for regular users)
+    @Query("SELECT f FROM File f WHERE f.isDeleted = false AND " +
+           "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
+           "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
+           "(:departmentId IS NULL OR f.departmentId = :departmentId) AND " +
+           "(:projectId IS NULL OR f.projectId = :projectId) AND " +
+           "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
+           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%')) AND " +
+           "(f.departmentId IN :accessibleDepartmentIds OR f.projectId IN :accessibleProjectIds OR f.visibility = 'PUBLIC')")
+    Page<File> findFilesWithAuthorizationFilters(@Param("uploaderId") Long uploaderId,
+                                                @Param("filename") String filename,
+                                                @Param("departmentCategoryId") Long departmentCategoryId,
+                                                @Param("departmentId") Long departmentId,
+                                                @Param("projectId") Long projectId,
+                                                @Param("fileTypeId") Long fileTypeId,
+                                                @Param("contentType") String contentType,
+                                                @Param("accessibleDepartmentIds") List<Long> accessibleDepartmentIds,
+                                                @Param("accessibleProjectIds") List<Long> accessibleProjectIds,
+                                                Pageable pageable);
+    
     // Statistics queries
     @Query("SELECT SUM(f.fileSize) FROM File f WHERE f.uploaderId = :uploaderId AND f.isDeleted = false")
     Long getTotalFileSizeByUser(@Param("uploaderId") Long uploaderId);
