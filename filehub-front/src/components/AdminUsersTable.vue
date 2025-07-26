@@ -39,6 +39,57 @@
       <p class="text-gray-600">No users match your current search criteria.</p>
     </div>
 
+    <!-- Bulk Actions Bar -->
+    <div v-if="selectedCount > 0" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-blue-700">
+              <span class="font-medium">{{ selectedCount }}</span> 
+              {{ selectedCount === 1 ? 'user' : 'users' }} selected
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button
+            @click="showBulkAssignmentModal = true"
+            :disabled="bulkActionLoading"
+            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 disabled:opacity-50"
+          >
+            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Bulk Assign
+          </button>
+          <button
+            @click="bulkActivateUsers"
+            :disabled="bulkActionLoading"
+            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 disabled:opacity-50"
+          >
+            {{ bulkActionLoading ? 'Processing...' : 'Activate' }}
+          </button>
+          <button
+            @click="bulkDeactivateUsers"
+            :disabled="bulkActionLoading"
+            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50"
+          >
+            {{ bulkActionLoading ? 'Processing...' : 'Deactivate' }}
+          </button>
+          <button
+            @click="clearSelection"
+            class="text-blue-600 hover:text-blue-800 text-xs font-medium"
+          >
+            Clear Selection
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Table -->
     <div v-else class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
@@ -189,6 +240,12 @@
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex items-center space-x-2">
                 <button
+                  @click="openUserAssignments(user)"
+                  class="px-3 py-1 rounded text-xs font-medium transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200"
+                >
+                  Manage Assignments
+                </button>
+                <button
                   @click="toggleUserStatus(user)"
                   :disabled="updatingUserId === user.id"
                   :class="[
@@ -216,6 +273,23 @@
         </tbody>
       </table>
     </div>
+
+    <!-- User Assignment Detail Modal -->
+    <UserAssignmentDetailModal
+      :is-open="showAssignmentModal"
+      :user-id="selectedUserId"
+      @close="closeAssignmentModal"
+    />
+
+    <!-- Bulk Assignment Modal -->
+    <!-- 
+    <BulkAssignmentModal
+      :is-open="showBulkAssignmentModal"
+      :selected-user-ids="Array.from(adminStore.selectedUserIds)"
+      @close="showBulkAssignmentModal = false"
+      @success="handleBulkAssignmentSuccess"
+    />
+    -->
   </div>
 </template>
 
@@ -223,10 +297,15 @@
 import { computed, ref } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import SortIcon from './SortIcon.vue'
+import UserAssignmentDetailModal from './UserAssignmentDetailModal.vue'
+// import BulkAssignmentModal from './BulkAssignmentModal.vue'
 import type { User } from '@/services/api'
 
 const adminStore = useAdminStore()
 const updatingUserId = ref<number | null>(null)
+const showAssignmentModal = ref(false)
+const selectedUserId = ref<number | null>(null)
+const showBulkAssignmentModal = ref(false)
 
 // Computed properties
 const loading = computed(() => adminStore.loading)
@@ -237,6 +316,8 @@ const currentSort = computed(() => adminStore.filters.sortBy)
 const currentSortDir = computed(() => adminStore.filters.sortDir)
 const allCurrentPageSelected = computed(() => adminStore.allCurrentPageSelected)
 const someCurrentPageSelected = computed(() => adminStore.someCurrentPageSelected)
+const selectedCount = computed(() => adminStore.selectedCount)
+const bulkActionLoading = computed(() => adminStore.bulkActionLoading)
 
 // Methods
 const getSortDirection = (field: string): 'asc' | 'desc' | null => {
@@ -303,5 +384,39 @@ const toggleUserSelection = (userId: number) => {
 
 const isUserSelected = (userId: number) => {
   return adminStore.selectedUserIds.has(userId)
+}
+
+const openUserAssignments = (user: User) => {
+  selectedUserId.value = user.id
+  showAssignmentModal.value = true
+}
+
+const closeAssignmentModal = () => {
+  showAssignmentModal.value = false
+  selectedUserId.value = null
+}
+
+const bulkActivateUsers = async () => {
+  const success = await adminStore.bulkUpdateUserStatus(true)
+  if (!success) {
+    console.error('Failed to activate users')
+  }
+}
+
+const bulkDeactivateUsers = async () => {
+  const success = await adminStore.bulkUpdateUserStatus(false)
+  if (!success) {
+    console.error('Failed to deactivate users')
+  }
+}
+
+const clearSelection = () => {
+  adminStore.clearSelection()
+}
+
+const handleBulkAssignmentSuccess = () => {
+  showBulkAssignmentModal.value = false
+  // Refresh the user list to show updated assignments
+  adminStore.fetchUsers()
 }
 </script>

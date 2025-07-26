@@ -89,7 +89,7 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Active Departments</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.activeDepartments }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">{{ departmentStats.activeDepartments }}</dd>
                 </dl>
               </div>
             </div>
@@ -196,10 +196,10 @@
                     {{ getManagerName(department.managerId) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ department.userCount || 0 }}
+                    0
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ department.projectCount || 0 }}
+                    0
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -378,30 +378,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
 import { useRouter } from 'vue-router'
-
-interface Department {
-  id: number
-  name: string
-  description?: string
-  managerId?: number
-  parentId?: number
-  isActive: boolean
-  userCount?: number
-  projectCount?: number
-  createdAt?: string
-  updatedAt?: string
-}
-
-interface User {
-  id: number
-  username: string
-  email: string
-  fullName: string
-  role: string
-}
+import { adminApi, type Department, type DashboardStats } from '@/services/adminApi'
+import type { User } from '@/services/api'
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 
 // Reactive data
@@ -414,10 +397,15 @@ const showEditModal = ref(false)
 const currentDepartment = ref<Department | null>(null)
 
 // Stats
-const stats = ref({
-  totalDepartments: 0,
+const stats = ref<DashboardStats>({
   totalUsers: 0,
+  totalDepartments: 0,
   activeProjects: 0,
+  totalFiles: 0
+})
+
+// Additional stats for departments
+const departmentStats = ref({
   activeDepartments: 0
 })
 
@@ -444,42 +432,17 @@ const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 const loadDepartments = async () => {
   try {
     loading.value = true
-    // TODO: Replace with actual API call
-    const mockDepartments: Department[] = [
-      {
-        id: 1,
-        name: 'Engineering',
-        description: 'Software development and technical teams',
-        managerId: 1,
-        isActive: true,
-        userCount: 25,
-        projectCount: 8
-      },
-      {
-        id: 2,
-        name: 'Marketing',
-        description: 'Marketing and brand management',
-        managerId: 2,
-        isActive: true,
-        userCount: 12,
-        projectCount: 5
-      },
-      {
-        id: 3,
-        name: 'Frontend Team',
-        description: 'User interface development',
-        managerId: 3,
-        parentId: 1,
-        isActive: true,
-        userCount: 8,
-        projectCount: 4
-      }
-    ]
-    departments.value = mockDepartments
-    stats.value.totalDepartments = mockDepartments.length
-    stats.value.activeDepartments = mockDepartments.filter(d => d.isActive).length
+    const response = await adminApi.getDepartments()
+    if (response.success && response.data) {
+      departments.value = response.data
+      stats.value.totalDepartments = response.data.length
+      departmentStats.value.activeDepartments = response.data.filter(d => d.isActive).length
+    } else {
+      notificationStore.error('Failed to Load Departments', 'Unable to fetch department data')
+    }
   } catch (error) {
     console.error('Failed to load departments:', error)
+    notificationStore.error('Connection Error', 'Failed to connect to the server')
   } finally {
     loading.value = false
   }
@@ -487,15 +450,14 @@ const loadDepartments = async () => {
 
 const loadManagers = async () => {
   try {
-    // TODO: Replace with actual API call to get users with ADMIN role or potential managers
-    const mockManagers: User[] = [
-      { id: 1, username: 'admin', email: 'admin@company.com', fullName: 'System Administrator', role: 'ADMIN' },
-      { id: 2, username: 'john.doe', email: 'john@company.com', fullName: 'John Doe', role: 'USER' },
-      { id: 3, username: 'jane.smith', email: 'jane@company.com', fullName: 'Jane Smith', role: 'USER' }
-    ]
-    managers.value = mockManagers
+    const response = await adminApi.getUsers({ role: 'ADMIN' })
+    if (response.success && response.data) {
+      managers.value = response.data.content
+    }
   } catch (error) {
     console.error('Failed to load managers:', error)
+    // Fallback to empty array
+    managers.value = []
   }
 }
 
@@ -544,11 +506,17 @@ const manageDepartmentUsers = (department: Department) => {
 const toggleDepartmentStatus = async (department: Department) => {
   try {
     loading.value = true
-    // TODO: Implement API call to toggle department status
-    department.isActive = !department.isActive
-    console.log(`Department ${department.name} ${department.isActive ? 'activated' : 'deactivated'}`)
+    const response = await adminApi.updateDepartment(department.id, { isActive: !department.isActive })
+    if (response.success) {
+      await loadDepartments()
+      const statusText = !department.isActive ? 'activated' : 'deactivated'
+      notificationStore.success('Department Status Updated', `${department.name} has been ${statusText}`)
+    } else {
+      notificationStore.error('Failed to Update Status', 'Please try again')
+    }
   } catch (error) {
     console.error('Failed to toggle department status:', error)
+    notificationStore.error('Operation Failed', 'An unexpected error occurred')
   } finally {
     loading.value = false
   }
@@ -558,31 +526,27 @@ const saveDepartment = async () => {
   try {
     loading.value = true
     
+    const departmentData = {
+      name: formData.value.name,
+      description: formData.value.description,
+      managerId: formData.value.managerId ? parseInt(formData.value.managerId) : undefined,
+      parentId: formData.value.parentId ? parseInt(formData.value.parentId) : undefined,
+      isActive: formData.value.isActive
+    }
+    
     if (showCreateModal.value) {
-      // TODO: Implement create department API call
-      const newDepartment: Department = {
-        id: Math.max(...departments.value.map(d => d.id)) + 1,
-        name: formData.value.name,
-        description: formData.value.description,
-        managerId: formData.value.managerId ? parseInt(formData.value.managerId) : undefined,
-        parentId: formData.value.parentId ? parseInt(formData.value.parentId) : undefined,
-        isActive: formData.value.isActive,
-        userCount: 0,
-        projectCount: 0
+      const response = await adminApi.createDepartment(departmentData)
+      if (response.success) {
+        notificationStore.success('Department Created', `${formData.value.name} has been created successfully`)
+      } else {
+        notificationStore.error('Failed to Create Department', 'Please try again')
       }
-      departments.value.push(newDepartment)
     } else if (showEditModal.value && currentDepartment.value) {
-      // TODO: Implement update department API call
-      const index = departments.value.findIndex(d => d.id === currentDepartment.value!.id)
-      if (index !== -1) {
-        departments.value[index] = {
-          ...departments.value[index],
-          name: formData.value.name,
-          description: formData.value.description,
-          managerId: formData.value.managerId ? parseInt(formData.value.managerId) : undefined,
-          parentId: formData.value.parentId ? parseInt(formData.value.parentId) : undefined,
-          isActive: formData.value.isActive
-        }
+      const response = await adminApi.updateDepartment(currentDepartment.value.id, departmentData)
+      if (response.success) {
+        notificationStore.success('Department Updated', `${formData.value.name} has been updated successfully`)
+      } else {
+        notificationStore.error('Failed to Update Department', 'Please try again')
       }
     }
     
@@ -590,6 +554,7 @@ const saveDepartment = async () => {
     await loadDepartments()
   } catch (error) {
     console.error('Failed to save department:', error)
+    notificationStore.error('Operation Failed', 'An unexpected error occurred')
   } finally {
     loading.value = false
   }
@@ -624,8 +589,14 @@ onMounted(async () => {
   ])
   await loadRootDepartments()
   
-  // Mock additional stats
-  stats.value.totalUsers = 156
-  stats.value.activeProjects = 23
+  // Load dashboard stats
+  try {
+    const statsResponse = await adminApi.getDashboardStats()
+    if (statsResponse.success && statsResponse.data) {
+      stats.value = statsResponse.data
+    }
+  } catch (error) {
+    console.error('Failed to load dashboard stats:', error)
+  }
 })
 </script>

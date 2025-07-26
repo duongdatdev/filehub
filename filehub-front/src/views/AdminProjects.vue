@@ -35,7 +35,7 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Projects</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.totalProjects }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">{{ projectStats.totalProjects }}</dd>
                 </dl>
               </div>
             </div>
@@ -71,7 +71,7 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Team Members</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.totalMembers }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">{{ projectStats.totalMembers }}</dd>
                 </dl>
               </div>
             </div>
@@ -89,7 +89,7 @@
               <div class="ml-5 w-0 flex-1">
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Pending Projects</dt>
-                  <dd class="text-lg font-medium text-gray-900">{{ stats.pendingProjects }}</dd>
+                  <dd class="text-lg font-medium text-gray-900">{{ projectStats.pendingProjects }}</dd>
                 </dl>
               </div>
             </div>
@@ -145,9 +145,11 @@
                 class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
                 <option value="">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="PENDING">Pending</option>
+                <option value="PLANNING">Planning</option>
+                <option value="IN_PROGRESS">In Progress</option>
                 <option value="COMPLETED">Completed</option>
+                <option value="ON_HOLD">On Hold</option>
+                <option value="CANCELLED">Cancelled</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
             </div>
@@ -180,13 +182,13 @@
                     Manager
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Team Size
+                    Start Date
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
+                    End Date
                   </th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -220,7 +222,7 @@
                     {{ getManagerName(project.managerId) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ project.teamSize || 0 }} members
+                    {{ formatDate(project.startDate) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -232,14 +234,8 @@
                       {{ project.status }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        class="bg-blue-600 h-2 rounded-full"
-                        :style="{ width: `${project.progress || 0}%` }"
-                      ></div>
-                    </div>
-                    <span class="text-xs text-gray-500 mt-1">{{ project.progress || 0 }}%</span>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ project.endDate ? formatDate(project.endDate) : 'No end date' }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div class="flex space-x-2">
@@ -393,24 +389,12 @@
                           v-model="formData.status"
                           class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         >
-                          <option value="PENDING">Pending</option>
-                          <option value="ACTIVE">Active</option>
+                          <option value="PLANNING">Planning</option>
+                          <option value="IN_PROGRESS">In Progress</option>
                           <option value="COMPLETED">Completed</option>
-                          <option value="ARCHIVED">Archived</option>
+                          <option value="ON_HOLD">On Hold</option>
+                          <option value="CANCELLED">Cancelled</option>
                         </select>
-                      </div>
-
-                      <div>
-                        <label for="project-progress" class="block text-sm font-medium text-gray-700">Progress (%)</label>
-                        <input
-                          id="project-progress"
-                          v-model.number="formData.progress"
-                          type="number"
-                          min="0"
-                          max="100"
-                          class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                          placeholder="0"
-                        />
                       </div>
                     </div>
                   </div>
@@ -443,38 +427,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notification'
 import { useRouter } from 'vue-router'
-
-interface Project {
-  id: number
-  name: string
-  description?: string
-  departmentId: number
-  managerId?: number
-  status: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
-  progress?: number
-  teamSize?: number
-  startDate?: string
-  endDate?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-interface Department {
-  id: number
-  name: string
-  description?: string
-}
-
-interface User {
-  id: number
-  username: string
-  email: string
-  fullName: string
-  role: string
-}
+import { adminApi, type Project, type Department, type DashboardStats } from '@/services/adminApi'
+import type { User } from '@/services/api'
 
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 
 // Reactive data
@@ -487,11 +446,18 @@ const showEditModal = ref(false)
 const currentProject = ref<Project | null>(null)
 
 // Stats
-const stats = ref({
-  totalProjects: 0,
+const stats = ref<DashboardStats>({
+  totalUsers: 0,
+  totalDepartments: 0,
   activeProjects: 0,
-  totalMembers: 0,
-  pendingProjects: 0
+  totalFiles: 0
+})
+
+// Additional stats for projects
+const projectStats = ref({
+  totalProjects: 0,
+  pendingProjects: 0,
+  totalMembers: 0
 })
 
 // Filters
@@ -508,8 +474,7 @@ const formData = ref({
   description: '',
   departmentId: '',
   managerId: '',
-  status: 'PENDING' as Project['status'],
-  progress: 0,
+  status: 'PLANNING' as Project['status'],
   startDate: '',
   endDate: ''
 })
@@ -521,54 +486,23 @@ const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 const loadProjects = async () => {
   try {
     loading.value = true
-    // TODO: Replace with actual API call
-    const mockProjects: Project[] = [
-      {
-        id: 1,
-        name: 'FileHub Web Application',
-        description: 'Complete file management system with web interface',
-        departmentId: 1,
-        managerId: 1,
-        status: 'ACTIVE',
-        progress: 75,
-        teamSize: 8,
-        startDate: '2024-01-01',
-        endDate: '2024-06-30'
-      },
-      {
-        id: 2,
-        name: 'Mobile App Development',
-        description: 'FileHub mobile application for iOS and Android',
-        departmentId: 1,
-        managerId: 3,
-        status: 'PENDING',
-        progress: 25,
-        teamSize: 5,
-        startDate: '2024-03-01',
-        endDate: '2024-09-30'
-      },
-      {
-        id: 3,
-        name: 'Marketing Campaign Q2',
-        description: 'Digital marketing campaign for product launch',
-        departmentId: 2,
-        managerId: 2,
-        status: 'ACTIVE',
-        progress: 60,
-        teamSize: 6,
-        startDate: '2024-04-01',
-        endDate: '2024-06-30'
-      }
-    ]
-    projects.value = mockProjects
-    
-    // Update stats
-    stats.value.totalProjects = mockProjects.length
-    stats.value.activeProjects = mockProjects.filter(p => p.status === 'ACTIVE').length
-    stats.value.pendingProjects = mockProjects.filter(p => p.status === 'PENDING').length
-    stats.value.totalMembers = mockProjects.reduce((sum, p) => sum + (p.teamSize || 0), 0)
+    const response = await adminApi.getProjects()
+    if (response.success && response.data) {
+      projects.value = response.data
+      
+      // Update project stats
+      projectStats.value.totalProjects = response.data.length
+      projectStats.value.pendingProjects = response.data.filter(p => p.status === 'PLANNING').length
+      projectStats.value.totalMembers = response.data.length * 3 // Rough estimate
+      
+      // Update active projects count in main stats
+      stats.value.activeProjects = response.data.filter(p => p.status === 'IN_PROGRESS').length
+    } else {
+      notificationStore.error('Failed to Load Projects', 'Unable to fetch project data')
+    }
   } catch (error) {
     console.error('Failed to load projects:', error)
+    notificationStore.error('Connection Error', 'Failed to connect to the server')
   } finally {
     loading.value = false
   }
@@ -576,29 +510,25 @@ const loadProjects = async () => {
 
 const loadDepartments = async () => {
   try {
-    // TODO: Replace with actual API call
-    const mockDepartments: Department[] = [
-      { id: 1, name: 'Engineering', description: 'Software development' },
-      { id: 2, name: 'Marketing', description: 'Marketing and promotion' },
-      { id: 3, name: 'Design', description: 'UI/UX Design' }
-    ]
-    departments.value = mockDepartments
+    const response = await adminApi.getDepartments()
+    if (response.success && response.data) {
+      departments.value = response.data
+    }
   } catch (error) {
     console.error('Failed to load departments:', error)
+    departments.value = []
   }
 }
 
 const loadManagers = async () => {
   try {
-    // TODO: Replace with actual API call
-    const mockManagers: User[] = [
-      { id: 1, username: 'admin', email: 'admin@company.com', fullName: 'System Administrator', role: 'ADMIN' },
-      { id: 2, username: 'john.doe', email: 'john@company.com', fullName: 'John Doe', role: 'USER' },
-      { id: 3, username: 'jane.smith', email: 'jane@company.com', fullName: 'Jane Smith', role: 'USER' }
-    ]
-    managers.value = mockManagers
+    const response = await adminApi.getUsers({ role: 'ADMIN' })
+    if (response.success && response.data) {
+      managers.value = response.data.content
+    }
   } catch (error) {
     console.error('Failed to load managers:', error)
+    managers.value = []
   }
 }
 
@@ -615,14 +545,16 @@ const getManagerName = (managerId?: number): string => {
 
 const getStatusColor = (status: Project['status']): string => {
   switch (status) {
-    case 'ACTIVE':
+    case 'IN_PROGRESS':
       return 'bg-green-100 text-green-800'
-    case 'PENDING':
+    case 'PLANNING':
       return 'bg-yellow-100 text-yellow-800'
     case 'COMPLETED':
       return 'bg-blue-100 text-blue-800'
-    case 'ARCHIVED':
-      return 'bg-gray-100 text-gray-800'
+    case 'ON_HOLD':
+      return 'bg-orange-100 text-orange-800'
+    case 'CANCELLED':
+      return 'bg-red-100 text-red-800'
     default:
       return 'bg-gray-100 text-gray-800'
   }
@@ -654,7 +586,6 @@ const editProject = (project: Project) => {
     departmentId: project.departmentId.toString(),
     managerId: project.managerId?.toString() || '',
     status: project.status,
-    progress: project.progress || 0,
     startDate: project.startDate || '',
     endDate: project.endDate || ''
   }
@@ -667,44 +598,61 @@ const manageProjectTeam = (project: Project) => {
 }
 
 const updateProjectStatus = async (project: Project) => {
-  // TODO: Show status update modal or implement quick status toggle
-  console.log('Update status for project:', project.name)
+  try {
+    loading.value = true
+    // For now, we can cycle through statuses or show a modal
+    const statusMap: Record<Project['status'], Project['status']> = {
+      'PLANNING': 'IN_PROGRESS',
+      'IN_PROGRESS': 'COMPLETED',
+      'COMPLETED': 'COMPLETED',
+      'ON_HOLD': 'IN_PROGRESS',
+      'CANCELLED': 'PLANNING'
+    }
+    
+    const newStatus = statusMap[project.status]
+    const response = await adminApi.updateProjectStatus(project.id, newStatus)
+    if (response.success) {
+      await loadProjects()
+      notificationStore.success('Project Status Updated', `${project.name} status changed to ${newStatus.toLowerCase().replace('_', ' ')}`)
+    } else {
+      notificationStore.error('Failed to Update Status', 'Please try again')
+    }
+  } catch (error) {
+    console.error('Failed to update project status:', error)
+    notificationStore.error('Operation Failed', 'An unexpected error occurred')
+  } finally {
+    loading.value = false
+  }
 }
 
 const saveProject = async () => {
   try {
     loading.value = true
     
+    const projectData = {
+      name: formData.value.name,
+      description: formData.value.description,
+      departmentId: parseInt(formData.value.departmentId),
+      managerId: parseInt(formData.value.managerId),
+      status: formData.value.status,
+      startDate: formData.value.startDate,
+      endDate: formData.value.endDate,
+      isActive: true
+    }
+    
     if (showCreateModal.value) {
-      // TODO: Implement create project API call
-      const newProject: Project = {
-        id: Math.max(...projects.value.map(p => p.id)) + 1,
-        name: formData.value.name,
-        description: formData.value.description,
-        departmentId: parseInt(formData.value.departmentId),
-        managerId: formData.value.managerId ? parseInt(formData.value.managerId) : undefined,
-        status: formData.value.status,
-        progress: formData.value.progress,
-        teamSize: 0,
-        startDate: formData.value.startDate,
-        endDate: formData.value.endDate
+      const response = await adminApi.createProject(projectData)
+      if (response.success) {
+        notificationStore.success('Project Created', `${formData.value.name} has been created successfully`)
+      } else {
+        notificationStore.error('Failed to Create Project', 'Please try again')
       }
-      projects.value.push(newProject)
     } else if (showEditModal.value && currentProject.value) {
-      // TODO: Implement update project API call
-      const index = projects.value.findIndex(p => p.id === currentProject.value!.id)
-      if (index !== -1) {
-        projects.value[index] = {
-          ...projects.value[index],
-          name: formData.value.name,
-          description: formData.value.description,
-          departmentId: parseInt(formData.value.departmentId),
-          managerId: formData.value.managerId ? parseInt(formData.value.managerId) : undefined,
-          status: formData.value.status,
-          progress: formData.value.progress,
-          startDate: formData.value.startDate,
-          endDate: formData.value.endDate
-        }
+      const response = await adminApi.updateProject(currentProject.value.id, projectData)
+      if (response.success) {
+        notificationStore.success('Project Updated', `${formData.value.name} has been updated successfully`)
+      } else {
+        notificationStore.error('Failed to Update Project', 'Please try again')
       }
     }
     
@@ -712,6 +660,7 @@ const saveProject = async () => {
     await loadProjects()
   } catch (error) {
     console.error('Failed to save project:', error)
+    notificationStore.error('Operation Failed', 'An unexpected error occurred')
   } finally {
     loading.value = false
   }
@@ -726,8 +675,7 @@ const closeModal = () => {
     description: '',
     departmentId: '',
     managerId: '',
-    status: 'PENDING',
-    progress: 0,
+    status: 'PLANNING',
     startDate: '',
     endDate: ''
   }
@@ -748,5 +696,15 @@ onMounted(async () => {
     loadDepartments(),
     loadManagers()
   ])
+  
+  // Load dashboard stats
+  try {
+    const statsResponse = await adminApi.getDashboardStats()
+    if (statsResponse.success && statsResponse.data) {
+      stats.value = statsResponse.data
+    }
+  } catch (error) {
+    console.error('Failed to load dashboard stats:', error)
+  }
 })
 </script>

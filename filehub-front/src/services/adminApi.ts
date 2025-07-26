@@ -71,6 +71,44 @@ export interface UserAssignmentRequest {
   projectIds?: number[]
 }
 
+export interface AdminUserDetailResponse {
+  id: number
+  username: string
+  email: string
+  fullName: string
+  role: string
+  isActive: boolean
+  createdAt: string
+  departments: Array<{
+    id: number
+    name: string
+    role: string
+  }>
+  projects: Array<{
+    id: number
+    name: string
+    role: string
+  }>
+}
+
+export interface AssignUserToDepartmentRequest {
+  departmentId: number
+  role?: string
+}
+
+export interface AssignUserToProjectRequest {
+  projectId: number
+  role?: string
+}
+
+export interface BatchUserAssignmentRequest {
+  userIds: number[]
+  departmentId?: number
+  projectId?: number
+  operation: 'ADD' | 'REMOVE' | 'UPDATE_ROLE'
+  role?: string
+}
+
 class AdminApiService {
   // Dashboard Stats
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
@@ -158,28 +196,47 @@ class AdminApiService {
     return apiService.delete<ApiResponse<boolean>>(`/projects/${id}`)
   }
 
-  // User Assignment Management
-  async assignUserToDepartment(userId: number, departmentId: number): Promise<ApiResponse<User>> {
-    return apiService.post<ApiResponse<User>>(`/admin/users/${userId}/department`, { departmentId })
+  // Enhanced User Management with Assignments
+  async getUserDetails(id: number): Promise<ApiResponse<AdminUserDetailResponse>> {
+    return apiService.get<ApiResponse<AdminUserDetailResponse>>(`/admin/users/${id}/details`)
   }
 
-  async assignUserToProject(userId: number, projectId: number): Promise<ApiResponse<User>> {
-    return apiService.post<ApiResponse<User>>(`/admin/users/${userId}/projects`, { projectId })
+  async getUserDepartments(userId: number): Promise<ApiResponse<Department[]>> {
+    return apiService.get<ApiResponse<Department[]>>(`/admin/users/${userId}/departments`)
+  }
+
+  async getUserProjects(userId: number): Promise<ApiResponse<Project[]>> {
+    return apiService.get<ApiResponse<Project[]>>(`/admin/users/${userId}/projects`)
+  }
+
+  // User Assignment Management
+  async assignUserToDepartment(userId: number, request: AssignUserToDepartmentRequest): Promise<ApiResponse<User>> {
+    return apiService.post<ApiResponse<User>>(`/admin/users/${userId}/department`, request)
+  }
+
+  async assignUserToProject(userId: number, request: AssignUserToProjectRequest): Promise<ApiResponse<User>> {
+    return apiService.post<ApiResponse<User>>(`/admin/users/${userId}/projects`, request)
+  }
+
+  async removeUserFromDepartment(userId: number, departmentId: number): Promise<ApiResponse<User>> {
+    return apiService.delete<ApiResponse<User>>(`/admin/users/${userId}/departments/${departmentId}`)
   }
 
   async removeUserFromProject(userId: number, projectId: number): Promise<ApiResponse<User>> {
     return apiService.delete<ApiResponse<User>>(`/admin/users/${userId}/projects/${projectId}`)
   }
 
-  async getUserAssignments(userId: number): Promise<ApiResponse<{
-    department?: Department
-    projects: Project[]
-  }>> {
-    return apiService.get<ApiResponse<any>>(`/admin/users/${userId}/assignments`)
+  async updateUserDepartmentRole(userId: number, departmentId: number, role: string): Promise<ApiResponse<User>> {
+    return apiService.put<ApiResponse<User>>(`/admin/users/${userId}/departments/${departmentId}/role?role=${role}`)
   }
 
-  async bulkAssignUsers(assignments: UserAssignmentRequest[]): Promise<ApiResponse<User[]>> {
-    return apiService.post<ApiResponse<User[]>>('/admin/users/bulk-assign', { assignments })
+  async updateUserProjectRole(userId: number, projectId: number, role: string): Promise<ApiResponse<User>> {
+    return apiService.put<ApiResponse<User>>(`/admin/users/${userId}/projects/${projectId}/role?role=${role}`)
+  }
+
+  // Batch Operations
+  async batchUpdateUserAssignments(request: BatchUserAssignmentRequest): Promise<ApiResponse<User[]>> {
+    return apiService.post<ApiResponse<User[]>>('/admin/users/batch-update', request)
   }
 
   // Statistics (for backward compatibility)

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import type { User } from '@/services/api'
-import { adminApi, type AdminUserFilterRequest, type PageResponse } from '@/services/adminApi'
+import { adminApi, type AdminUserFilterRequest, type PageResponse, type AdminUserDetailResponse, type Department, type Project, type BatchUserAssignmentRequest } from '@/services/adminApi'
 
 export interface AdminState {
   users: User[]
@@ -13,6 +13,13 @@ export interface AdminState {
   filters: AdminUserFilterRequest
   selectedUserIds: Set<number>
   bulkActionLoading: boolean
+  // New assignment-related state
+  selectedUserDetails: AdminUserDetailResponse | null
+  userAssignmentLoading: boolean
+  availableDepartments: Department[]
+  availableProjects: Project[]
+  departmentsLoading: boolean
+  projectsLoading: boolean
 }
 
 export const useAdminStore = defineStore('admin', {
@@ -31,7 +38,14 @@ export const useAdminStore = defineStore('admin', {
       sortDir: 'desc'
     },
     selectedUserIds: new Set<number>(),
-    bulkActionLoading: false
+    bulkActionLoading: false,
+    // New assignment-related state
+    selectedUserDetails: null,
+    userAssignmentLoading: false,
+    availableDepartments: [],
+    availableProjects: [],
+    departmentsLoading: false,
+    projectsLoading: false
   }),
 
   getters: {
@@ -265,6 +279,248 @@ export const useAdminStore = defineStore('admin', {
       } finally {
         this.bulkActionLoading = false
       }
+    },
+
+    // New User Assignment Management Actions
+    async fetchUserDetails(userId: number): Promise<AdminUserDetailResponse | null> {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.getUserDetails(userId)
+        
+        if (response.success) {
+          this.selectedUserDetails = response.data as AdminUserDetailResponse
+          return this.selectedUserDetails
+        } else {
+          throw new Error(response.message || 'Failed to fetch user details')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while fetching user details'
+        console.error('Error fetching user details:', error)
+        return null
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async fetchAvailableDepartments() {
+      this.departmentsLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.getDepartments()
+        
+        if (response.success) {
+          this.availableDepartments = response.data as Department[]
+        } else {
+          throw new Error(response.message || 'Failed to fetch departments')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while fetching departments'
+        console.error('Error fetching departments:', error)
+      } finally {
+        this.departmentsLoading = false
+      }
+    },
+
+    async fetchAvailableProjects() {
+      this.projectsLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.getProjects()
+        
+        if (response.success) {
+          this.availableProjects = response.data as Project[]
+        } else {
+          throw new Error(response.message || 'Failed to fetch projects')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while fetching projects'
+        console.error('Error fetching projects:', error)
+      } finally {
+        this.projectsLoading = false
+      }
+    },
+
+    async assignUserToDepartment(userId: number, departmentId: number, role: string = 'MEMBER') {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.assignUserToDepartment(userId, { departmentId, role })
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to assign user to department')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while assigning user to department'
+        console.error('Error assigning user to department:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async assignUserToProject(userId: number, projectId: number, role: string = 'MEMBER') {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.assignUserToProject(userId, { projectId, role })
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to assign user to project')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while assigning user to project'
+        console.error('Error assigning user to project:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async removeUserFromDepartment(userId: number, departmentId: number) {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.removeUserFromDepartment(userId, departmentId)
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to remove user from department')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while removing user from department'
+        console.error('Error removing user from department:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async removeUserFromProject(userId: number, projectId: number) {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.removeUserFromProject(userId, projectId)
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to remove user from project')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while removing user from project'
+        console.error('Error removing user from project:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async updateUserDepartmentRole(userId: number, departmentId: number, role: string) {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.updateUserDepartmentRole(userId, departmentId, role)
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to update user department role')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while updating user department role'
+        console.error('Error updating user department role:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async updateUserProjectRole(userId: number, projectId: number, role: string) {
+      this.userAssignmentLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.updateUserProjectRole(userId, projectId, role)
+        
+        if (response.success) {
+          // Refresh user details if we're viewing this user
+          if (this.selectedUserDetails?.id === userId) {
+            await this.fetchUserDetails(userId)
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to update user project role')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while updating user project role'
+        console.error('Error updating user project role:', error)
+        return false
+      } finally {
+        this.userAssignmentLoading = false
+      }
+    },
+
+    async batchUpdateAssignments(request: BatchUserAssignmentRequest) {
+      this.bulkActionLoading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.batchUpdateUserAssignments(request)
+        
+        if (response.success) {
+          // Refresh the user list to reflect changes
+          await this.fetchUsers()
+          // Clear selection after batch operation
+          this.clearSelection()
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to perform batch update')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred during batch update'
+        console.error('Error in batch update:', error)
+        return false
+      } finally {
+        this.bulkActionLoading = false
+      }
+    },
+
+    clearUserDetails() {
+      this.selectedUserDetails = null
     }
   }
 })

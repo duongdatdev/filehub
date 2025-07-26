@@ -10,7 +10,6 @@ import AdminDepartments from '@/views/AdminDepartments.vue'
 import AdminProjects from '@/views/AdminProjects.vue'
 import AdminAssignmentsPage from '@/views/AdminAssignmentsPage.vue'
 import FilesPage from '@/views/FilesPage.vue'
-import UITestPage from '@/views/UITestPage.vue'
 
 const routes = [
   {
@@ -72,12 +71,6 @@ const routes = [
     name: 'AdminAssignments',
     component: AdminAssignmentsPage,
     meta: { requiresAuth: true, requiresAdmin: true }
-  },
-  {
-    path: '/ui-test',
-    name: 'UITest',
-    component: UITestPage,
-    meta: { requiresAuth: false }
   }
 ]
 
