@@ -18,6 +18,7 @@ import com.duongdat.filehub.entity.Project;
 import com.duongdat.filehub.service.AdminService;
 import com.duongdat.filehub.service.DepartmentService;
 import com.duongdat.filehub.service.ProjectService;
+import com.duongdat.filehub.service.FileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,7 @@ public class AdminController {
     private final AdminService adminService;
     private final DepartmentService departmentService;
     private final ProjectService projectService;
+    private final FileService fileService;
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> getAllUsers(
@@ -383,6 +385,29 @@ public class AdminController {
             } else {
                 return ResponseEntity.badRequest().body(ApiResponse.error("Project not found"));
             }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // Files Management endpoints
+    @GetMapping("/files/shared")
+    public ResponseEntity<ApiResponse<PageResponse<com.duongdat.filehub.dto.response.FileResponse>>> getAllSharedFiles(
+            @RequestParam(required = false) String filename,
+            @RequestParam(required = false) Long departmentCategoryId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long uploaderId,
+            @RequestParam(required = false) Long fileTypeId,
+            @RequestParam(required = false) String contentType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "uploadedAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+        try {
+            PageResponse<com.duongdat.filehub.dto.response.FileResponse> files = fileService.getAllFilesWithFilters(
+                    filename, departmentCategoryId, departmentId, projectId, uploaderId, fileTypeId, contentType, page, size, sortBy, sortDirection);
+            return ResponseEntity.ok(ApiResponse.success("All shared files retrieved successfully", files));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

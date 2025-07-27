@@ -227,67 +227,251 @@ public class FileService {
     }
     
     public List<FileResponse> getFilesByProject(Long projectId) {
+        // Check if current user can view files in this project
+        if (!userAuthorizationService.canViewProjectFiles(projectId)) {
+            throw new RuntimeException("You don't have permission to view files in this project");
+        }
+        
         List<File> files = fileRepository.findByProjectIdAndIsDeletedFalse(projectId);
         return files.stream().map(this::convertToFileResponse).toList();
+    }
+
+    public PageResponse<FileResponse> getSharedFiles(Long userId, String filename, Long departmentCategoryId, 
+                                                   Long departmentId, Long projectId, Long fileTypeId, String contentType, 
+                                                   int page, int size, String sortBy, String sortDirection) {
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        // Get accessible departments and projects for the user
+        List<Long> accessibleDepartmentIds = userAuthorizationService.getAccessibleDepartmentIds();
+        List<Long> accessibleProjectIds = userAuthorizationService.getAccessibleProjectIds();
+        
+        // If user is admin, they can see all files
+        Page<File> filesPage;
+        if (userAuthorizationService.isUserAdmin(userId)) {
+            // Admin can see all files
+            filesPage = fileRepository.findAllFilesWithFilters(filename, departmentCategoryId, departmentId, projectId, null, fileTypeId, contentType, pageable);
+        } else {
+            // If user has no accessible departments/projects, they can only see public files
+            if (accessibleDepartmentIds.isEmpty() || (accessibleDepartmentIds.size() == 1 && accessibleDepartmentIds.get(0) == -1L)) {
+                accessibleDepartmentIds = List.of(-1L); // Use -1 as placeholder for no access
+            }
+            if (accessibleProjectIds.isEmpty() || (accessibleProjectIds.size() == 1 && accessibleProjectIds.get(0) == -1L)) {
+                accessibleProjectIds = List.of(-1L);
+            }
+            
+            // Get all files (including from other users) in accessible departments and projects
+            filesPage = fileRepository.findSharedFilesWithAuthorizationFilters(
+                filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType,
+                accessibleDepartmentIds, accessibleProjectIds, pageable);
+        }
+        
+        return new PageResponse<FileResponse>(
+                filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
+                filesPage.getNumber(),
+                filesPage.getSize(),
+                filesPage.getTotalElements(),
+                filesPage.getTotalPages(),
+                filesPage.isFirst(),
+                filesPage.isLast(),
+                filesPage.hasNext(),
+                filesPage.hasPrevious()
+        );
+    }
+
+    public PageResponse<FileResponse> getSharedFilesByDepartment(Long userId, Long departmentId, String filename, 
+                                                               Long departmentCategoryId, Long fileTypeId, String contentType, 
+                                                               int page, int size, String sortBy, String sortDirection) {
+        // Check if current user can view files in this department
+        if (!userAuthorizationService.canViewDepartmentFiles(departmentId)) {
+            throw new RuntimeException("You don't have permission to view files in this department");
+        }
+        
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<File> filesPage = fileRepository.findSharedFilesByDepartment(
+            departmentId, filename, departmentCategoryId, fileTypeId, contentType, pageable);
+        
+        return new PageResponse<FileResponse>(
+                filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
+                filesPage.getNumber(),
+                filesPage.getSize(),
+                filesPage.getTotalElements(),
+                filesPage.getTotalPages(),
+                filesPage.isFirst(),
+                filesPage.isLast(),
+                filesPage.hasNext(),
+                filesPage.hasPrevious()
+        );
+    }
+
+    public PageResponse<FileResponse> getSharedFilesByProject(Long userId, Long projectId, String filename, 
+                                                            Long fileTypeId, String contentType, 
+                                                            int page, int size, String sortBy, String sortDirection) {
+        // Check if current user can view files in this project
+        if (!userAuthorizationService.canViewProjectFiles(projectId)) {
+            throw new RuntimeException("You don't have permission to view files in this project");
+        }
+        
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        Page<File> filesPage = fileRepository.findSharedFilesByProject(
+            projectId, filename, fileTypeId, contentType, pageable);
+        
+        return new PageResponse<FileResponse>(
+                filesPage.getContent().stream().map(this::convertToFileResponse).toList(),
+                filesPage.getNumber(),
+                filesPage.getSize(),
+                filesPage.getTotalElements(),
+                filesPage.getTotalPages(),
+                filesPage.isFirst(),
+                filesPage.isLast(),
+                filesPage.hasNext(),
+                filesPage.hasPrevious()
+        );
     }
     
     public Optional<FileResponse> getFileById(Long fileId) {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        return fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId)
-                .map(this::convertToFileResponse);
+        // First try to find the file
+        Optional<File> fileOpt = fileRepository.findById(fileId);
+        if (fileOpt.isEmpty() || fileOpt.get().getIsDeleted()) {
+            return Optional.empty();
+        }
+        
+        File file = fileOpt.get();
+        
+        // Check if user can access this file
+        boolean canAccess = false;
+        
+        // Admin can access all files
+        if (userAuthorizationService.isUserAdmin(userId)) {
+            canAccess = true;
+        }
+        // User uploaded this file
+        else if (file.getUploaderId().equals(userId)) {
+            canAccess = true;
+        }
+        // File is in user's accessible department
+        else if (file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
+            canAccess = true;
+        }
+        // File is in user's accessible project
+        else if (file.getProjectId() != null && userAuthorizationService.canViewProjectFiles(file.getProjectId())) {
+            canAccess = true;
+        }
+        // File is public
+        else if ("PUBLIC".equals(file.getVisibility())) {
+            canAccess = true;
+        }
+        
+        if (!canAccess) {
+            throw new RuntimeException("You don't have permission to access this file");
+        }
+        
+        return Optional.of(convertToFileResponse(file));
     }
     
     public boolean deleteFile(Long fileId) {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        Optional<File> fileOpt = fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId);
-        if (fileOpt.isPresent()) {
-            File file = fileOpt.get();
-            
-            // Mark as deleted in database
-            file.setIsDeleted(true);
-            file.setDeletedAt(LocalDateTime.now());
-            fileRepository.save(file);
-            
-            // Delete from primary storage (Google Drive)
-            if ("google-drive".equals(primaryStorage) && file.getDriveFileId() != null) {
-                try {
-                    boolean driveDeleted = googleDriveService.deleteFile(file.getDriveFileId());
-                    if (driveDeleted) {
-                        log.info("File deleted from Google Drive (primary): {}", file.getDriveFileId());
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to delete from Google Drive (primary): {}", e.getMessage());
-                }
-            }
-            
-            // Delete from fallback storage (local) if exists
-            if (file.getFilePath() != null) {
-                try {
-                    Path filePath = Paths.get(file.getFilePath());
-                    if (Files.exists(filePath)) {
-                        Files.delete(filePath);
-                        log.info("File deleted from local storage (fallback): {}", filePath);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to delete from local storage: {}", e.getMessage());
-                }
-            }
-            
-            return true;
+        // Find the file first
+        Optional<File> fileOpt = fileRepository.findById(fileId);
+        if (fileOpt.isEmpty() || fileOpt.get().getIsDeleted()) {
+            return false;
         }
-        return false;
+        
+        File file = fileOpt.get();
+        
+        // Check if user can delete this file (only owner or admin)
+        boolean canDelete = false;
+        if (userAuthorizationService.isUserAdmin(userId)) {
+            canDelete = true;
+        } else if (file.getUploaderId().equals(userId)) {
+            canDelete = true;
+        }
+        
+        if (!canDelete) {
+            throw new RuntimeException("You don't have permission to delete this file");
+        }
+        
+        // Mark as deleted in database
+        file.setIsDeleted(true);
+        file.setDeletedAt(LocalDateTime.now());
+        fileRepository.save(file);
+        
+        // Delete from primary storage (Google Drive)
+        if ("google-drive".equals(primaryStorage) && file.getDriveFileId() != null) {
+            try {
+                boolean driveDeleted = googleDriveService.deleteFile(file.getDriveFileId());
+                if (driveDeleted) {
+                    log.info("File deleted from Google Drive (primary): {}", file.getDriveFileId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete from Google Drive (primary): {}", e.getMessage());
+            }
+        }
+        
+        // Delete from fallback storage (local) if exists
+        if (file.getFilePath() != null) {
+            try {
+                Path filePath = Paths.get(file.getFilePath());
+                if (Files.exists(filePath)) {
+                    Files.delete(filePath);
+                    log.info("File deleted from local storage (fallback): {}", filePath);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete from local storage: {}", e.getMessage());
+            }
+        }
+        
+        return true;
     }
     
     public byte[] downloadFile(Long fileId) throws IOException {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
-        File file = fileRepository.findByIdAndUploaderIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+        // First try to find the file
+        Optional<File> fileOpt = fileRepository.findById(fileId);
+        if (fileOpt.isEmpty() || fileOpt.get().getIsDeleted()) {
+            throw new RuntimeException("File not found");
+        }
+        
+        File file = fileOpt.get();
+        
+        // Check if user can access this file
+        boolean canAccess = false;
+        
+        // Admin can access all files
+        if (userAuthorizationService.isUserAdmin(userId)) {
+            canAccess = true;
+        }
+        // User uploaded this file
+        else if (file.getUploaderId().equals(userId)) {
+            canAccess = true;
+        }
+        // File is in user's accessible department
+        else if (file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
+            canAccess = true;
+        }
+        // File is in user's accessible project
+        else if (file.getProjectId() != null && userAuthorizationService.canViewProjectFiles(file.getProjectId())) {
+            canAccess = true;
+        }
+        // File is public
+        else if ("PUBLIC".equals(file.getVisibility())) {
+            canAccess = true;
+        }
+        
+        if (!canAccess) {
+            throw new RuntimeException("You don't have permission to access this file");
+        }
         
         // Primary storage: Try to download from Google Drive first
         if ("google-drive".equals(primaryStorage) && file.getDriveFileId() != null) {

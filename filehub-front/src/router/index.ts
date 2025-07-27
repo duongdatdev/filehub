@@ -10,6 +10,7 @@ import AdminDepartments from '@/views/AdminDepartments.vue'
 import AdminProjects from '@/views/AdminProjects.vue'
 import AdminAssignmentsPage from '@/views/AdminAssignmentsPage.vue'
 import FilesPage from '@/views/FilesPage.vue'
+import SharedFilesPage from '@/views/SharedFilesPage.vue'
 
 const routes = [
   {
@@ -22,6 +23,12 @@ const routes = [
     path: '/files',
     name: 'Files',
     component: FilesPage,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/files/shared',
+    name: 'SharedFiles',
+    component: SharedFilesPage,
     meta: { requiresAuth: true }
   },
   {

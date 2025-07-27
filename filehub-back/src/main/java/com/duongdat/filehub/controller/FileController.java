@@ -147,6 +147,78 @@ public class FileController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    @GetMapping("/shared")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<FileResponse>>> getSharedFiles(
+            @RequestParam(required = false) String filename,
+            @RequestParam(required = false) Long departmentCategoryId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) Long fileTypeId,
+            @RequestParam(required = false) String contentType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "uploadedAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+        try {
+            Long userId = securityUtil.getCurrentUserId()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
+            PageResponse<FileResponse> files = fileService.getSharedFiles(
+                    userId, filename, departmentCategoryId, departmentId, projectId, fileTypeId, contentType, page, size, sortBy, sortDirection);
+            return ResponseEntity.ok(ApiResponse.success("Shared files retrieved successfully", files));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/shared/department/{departmentId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<FileResponse>>> getSharedFilesByDepartment(
+            @PathVariable Long departmentId,
+            @RequestParam(required = false) String filename,
+            @RequestParam(required = false) Long departmentCategoryId,
+            @RequestParam(required = false) Long fileTypeId,
+            @RequestParam(required = false) String contentType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "uploadedAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+        try {
+            Long userId = securityUtil.getCurrentUserId()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
+            PageResponse<FileResponse> files = fileService.getSharedFilesByDepartment(
+                    userId, departmentId, filename, departmentCategoryId, fileTypeId, contentType, page, size, sortBy, sortDirection);
+            return ResponseEntity.ok(ApiResponse.success("Department shared files retrieved successfully", files));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @GetMapping("/shared/project/{projectId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<FileResponse>>> getSharedFilesByProject(
+            @PathVariable Long projectId,
+            @RequestParam(required = false) String filename,
+            @RequestParam(required = false) Long fileTypeId,
+            @RequestParam(required = false) String contentType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "uploadedAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection) {
+        try {
+            Long userId = securityUtil.getCurrentUserId()
+                    .orElseThrow(() -> new RuntimeException("User not authenticated"));
+            
+            PageResponse<FileResponse> files = fileService.getSharedFilesByProject(
+                    userId, projectId, filename, fileTypeId, contentType, page, size, sortBy, sortDirection);
+            return ResponseEntity.ok(ApiResponse.success("Project shared files retrieved successfully", files));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
     
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")

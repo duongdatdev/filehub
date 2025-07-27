@@ -1,6 +1,6 @@
 import api from './api'
 
-export interface Department {
+export interface DepartmentResponse {
   id: number
   name: string
   description?: string
@@ -15,6 +15,8 @@ export interface Department {
   users?: User[]
   projects?: Project[]
 }
+
+export interface Department extends DepartmentResponse {}
 
 export interface User {
   id: number
@@ -112,6 +114,11 @@ const departmentApi = {
   // Get department statistics (admin only)
   getStats(id: number): Promise<{ data: { data: DepartmentStats } }> {
     return api.get(`/departments/${id}/stats`)
+  },
+
+  // Get user's assigned departments
+  getUserDepartments(): Promise<{ data: { data: Department[] } }> {
+    return api.get('/departments/user')
   }
 }
 

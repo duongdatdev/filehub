@@ -1,6 +1,6 @@
 import api from './api'
 
-export interface Project {
+export interface ProjectResponse {
   id: number
   name: string
   description?: string
@@ -10,6 +10,8 @@ export interface Project {
   updatedAt: string
   department?: Department
 }
+
+export interface Project extends ProjectResponse {}
 
 export interface Department {
   id: number
@@ -103,6 +105,11 @@ const projectApi = {
   // Get project statistics
   getStats(id: number): Promise<{ data: { data: ProjectStats } }> {
     return api.get(`/projects/${id}/stats`)
+  },
+
+  // Get user's assigned projects
+  getUserProjects(): Promise<{ data: { data: Project[] } }> {
+    return api.get('/projects/user')
   }
 }
 

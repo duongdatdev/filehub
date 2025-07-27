@@ -172,6 +172,85 @@ class FileApiService {
   async deleteFile(id: number): Promise<ApiResponse<void>> {
     return await apiService.delete(`/files/${id}`)
   }
+
+  /**
+   * Get shared files (all accessible files)
+   */
+  async getSharedFiles(filters: FileFilters = {}): Promise<ApiResponse<PageResponse<FileResponse>>> {
+    const params = new URLSearchParams()
+    
+    if (filters.filename) params.append('filename', filters.filename)
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
+    if (filters.departmentId) params.append('departmentId', filters.departmentId.toString())
+    if (filters.projectId) params.append('projectId', filters.projectId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
+    if (filters.contentType) params.append('contentType', filters.contentType)
+    if (filters.page !== undefined) params.append('page', filters.page.toString())
+    if (filters.size !== undefined) params.append('size', filters.size.toString())
+    if (filters.sortBy) params.append('sortBy', filters.sortBy)
+    if (filters.sortDirection) params.append('sortDirection', filters.sortDirection)
+
+    return await apiService.get(`/files/shared?${params.toString()}`)
+  }
+
+  /**
+   * Get shared files by department
+   */
+  async getSharedFilesByDepartment(departmentId: number, filters: FileFilters = {}): Promise<ApiResponse<PageResponse<FileResponse>>> {
+    const params = new URLSearchParams()
+    
+    if (filters.filename) params.append('filename', filters.filename)
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
+    if (filters.projectId) params.append('projectId', filters.projectId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
+    if (filters.contentType) params.append('contentType', filters.contentType)
+    if (filters.page !== undefined) params.append('page', filters.page.toString())
+    if (filters.size !== undefined) params.append('size', filters.size.toString())
+    if (filters.sortBy) params.append('sortBy', filters.sortBy)
+    if (filters.sortDirection) params.append('sortDirection', filters.sortDirection)
+
+    return await apiService.get(`/files/shared/department/${departmentId}?${params.toString()}`)
+  }
+
+  /**
+   * Get shared files by project
+   */
+  async getSharedFilesByProject(projectId: number, filters: FileFilters = {}): Promise<ApiResponse<PageResponse<FileResponse>>> {
+    const params = new URLSearchParams()
+    
+    if (filters.filename) params.append('filename', filters.filename)
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
+    if (filters.departmentId) params.append('departmentId', filters.departmentId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
+    if (filters.contentType) params.append('contentType', filters.contentType)
+    if (filters.page !== undefined) params.append('page', filters.page.toString())
+    if (filters.size !== undefined) params.append('size', filters.size.toString())
+    if (filters.sortBy) params.append('sortBy', filters.sortBy)
+    if (filters.sortDirection) params.append('sortDirection', filters.sortDirection)
+
+    return await apiService.get(`/files/shared/project/${projectId}?${params.toString()}`)
+  }
+
+  /**
+   * Admin: Get all shared files (admin only)
+   */
+  async getAdminSharedFiles(filters: AdminFileFilters = {}): Promise<ApiResponse<PageResponse<FileResponse>>> {
+    const params = new URLSearchParams()
+    
+    if (filters.filename) params.append('filename', filters.filename)
+    if (filters.departmentCategoryId) params.append('departmentCategoryId', filters.departmentCategoryId.toString())
+    if (filters.departmentId) params.append('departmentId', filters.departmentId.toString())
+    if (filters.projectId) params.append('projectId', filters.projectId.toString())
+    if (filters.fileTypeId) params.append('fileTypeId', filters.fileTypeId.toString())
+    if (filters.uploaderId) params.append('uploaderId', filters.uploaderId.toString())
+    if (filters.contentType) params.append('contentType', filters.contentType)
+    if (filters.page !== undefined) params.append('page', filters.page.toString())
+    if (filters.size !== undefined) params.append('size', filters.size.toString())
+    if (filters.sortBy) params.append('sortBy', filters.sortBy)
+    if (filters.sortDirection) params.append('sortDirection', filters.sortDirection)
+
+    return await apiService.get(`/admin/files/shared?${params.toString()}`)
+  }
 }
 
 export const fileApi = new FileApiService()
