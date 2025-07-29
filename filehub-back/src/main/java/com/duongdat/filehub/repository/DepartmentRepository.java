@@ -40,4 +40,9 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     
     @Query("SELECT COUNT(p) FROM Project p WHERE p.departmentId = :departmentId")
     Long countActiveProjectsByDepartmentId(@Param("departmentId") Long departmentId);
+    
+    @Query("SELECT d FROM Department d JOIN UserDepartment ud ON d.id = ud.departmentId " +
+           "WHERE ud.userId = :userId AND ud.isActive = true AND d.isActive = true " +
+           "ORDER BY d.name")
+    List<Department> findDepartmentsByUserId(@Param("userId") Long userId);
 }

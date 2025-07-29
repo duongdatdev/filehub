@@ -136,4 +136,15 @@ public class DepartmentController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
+    
+    @GetMapping("/user")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Department>>> getCurrentUserDepartments() {
+        try {
+            List<Department> departments = departmentService.getCurrentUserDepartments();
+            return ResponseEntity.ok(ApiResponse.success("User departments retrieved successfully", departments));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
 }

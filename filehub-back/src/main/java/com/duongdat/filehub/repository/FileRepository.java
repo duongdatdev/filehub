@@ -28,6 +28,9 @@ public interface FileRepository extends JpaRepository<File, Long> {
     // Department-based queries
     List<File> findByDepartmentIdAndIsDeletedFalse(Long departmentId);
     
+    // Department files that don't belong to projects
+    List<File> findByDepartmentIdAndProjectIdIsNullAndIsDeletedFalse(Long departmentId);
+    
     List<File> findByDepartmentCategoryIdAndIsDeletedFalse(Long departmentCategoryId);
     
     // Project-based queries
@@ -81,6 +84,7 @@ public interface FileRepository extends JpaRepository<File, Long> {
                                      Pageable pageable);
     
     // Query for files with authorization filters (for regular users)
+    // Project files are only visible to project members, department files without projects are visible to department members
     @Query("SELECT f FROM File f WHERE f.isDeleted = false AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
            "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
@@ -88,7 +92,9 @@ public interface FileRepository extends JpaRepository<File, Long> {
            "(:projectId IS NULL OR f.projectId = :projectId) AND " +
            "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
            "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%')) AND " +
-           "(f.departmentId IN :accessibleDepartmentIds OR f.projectId IN :accessibleProjectIds OR f.visibility = 'PUBLIC')")
+           "(f.visibility = 'PUBLIC' OR " +
+           " (f.projectId IS NOT NULL AND f.projectId IN :accessibleProjectIds) OR " +
+           " (f.projectId IS NULL AND f.departmentId IN :accessibleDepartmentIds))")
     Page<File> findFilesWithAuthorizationFilters(@Param("uploaderId") Long uploaderId,
                                                 @Param("filename") String filename,
                                                 @Param("departmentCategoryId") Long departmentCategoryId,
@@ -101,6 +107,7 @@ public interface FileRepository extends JpaRepository<File, Long> {
                                                 Pageable pageable);
 
     // Query for shared files (from all users) with authorization filters
+    // Project files are only visible to project members, department files without projects are visible to department members
     @Query("SELECT f FROM File f WHERE f.isDeleted = false AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
            "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
@@ -108,7 +115,9 @@ public interface FileRepository extends JpaRepository<File, Long> {
            "(:projectId IS NULL OR f.projectId = :projectId) AND " +
            "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
            "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%')) AND " +
-           "(f.departmentId IN :accessibleDepartmentIds OR f.projectId IN :accessibleProjectIds OR f.visibility = 'PUBLIC')")
+           "(f.visibility = 'PUBLIC' OR " +
+           " (f.projectId IS NOT NULL AND f.projectId IN :accessibleProjectIds) OR " +
+           " (f.projectId IS NULL AND f.departmentId IN :accessibleDepartmentIds))")
     Page<File> findSharedFilesWithAuthorizationFilters(@Param("filename") String filename,
                                                       @Param("departmentCategoryId") Long departmentCategoryId,
                                                       @Param("departmentId") Long departmentId,
@@ -119,12 +128,13 @@ public interface FileRepository extends JpaRepository<File, Long> {
                                                       @Param("accessibleProjectIds") List<Long> accessibleProjectIds,
                                                       Pageable pageable);
 
-    // Query for shared files by department
-    @Query("SELECT f FROM File f WHERE f.isDeleted = false AND f.departmentId = :departmentId AND " +
+    // Query for shared files by department (excluding project files)
+    @Query("SELECT f FROM File f WHERE f.isDeleted = false AND f.departmentId = :departmentId AND f.projectId IS NULL AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
            "(:departmentCategoryId IS NULL OR f.departmentCategoryId = :departmentCategoryId) AND " +
            "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
-           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
+           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%')) AND " +
+           "(f.visibility = 'PUBLIC' OR f.visibility = 'DEPARTMENT')")
     Page<File> findSharedFilesByDepartment(@Param("departmentId") Long departmentId,
                                          @Param("filename") String filename,
                                          @Param("departmentCategoryId") Long departmentCategoryId,
@@ -136,7 +146,8 @@ public interface FileRepository extends JpaRepository<File, Long> {
     @Query("SELECT f FROM File f WHERE f.isDeleted = false AND f.projectId = :projectId AND " +
            "(:filename IS NULL OR LOWER(f.originalFilename) LIKE LOWER(CONCAT('%', :filename, '%'))) AND " +
            "(:fileTypeId IS NULL OR f.fileTypeId = :fileTypeId) AND " +
-           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%'))")
+           "(:contentType IS NULL OR f.contentType LIKE CONCAT(:contentType, '%')) AND " +
+           "(f.visibility = 'PUBLIC' OR f.visibility = 'DEPARTMENT' OR f.visibility = 'PROJECT')")
     Page<File> findSharedFilesByProject(@Param("projectId") Long projectId,
                                       @Param("filename") String filename,
                                       @Param("fileTypeId") Long fileTypeId,

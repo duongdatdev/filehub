@@ -3,6 +3,7 @@ package com.duongdat.filehub.service;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.entity.Project;
 import com.duongdat.filehub.repository.ProjectRepository;
+import com.duongdat.filehub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +20,7 @@ import java.util.Optional;
 public class ProjectService {
     
     private final ProjectRepository projectRepository;
+    private final SecurityUtil securityUtil;
     
     public List<Project> getAllActiveProjects() {
         return projectRepository.findAllByOrderByCreatedAtDesc();
@@ -104,5 +106,12 @@ public class ProjectService {
         project.setUpdatedAt(LocalDateTime.now());
         
         return projectRepository.save(project);
+    }
+    
+    public List<Project> getCurrentUserProjects() {
+        Long currentUserId = securityUtil.getCurrentUserId()
+                .orElseThrow(() -> new RuntimeException("User not authenticated"));
+        
+        return projectRepository.findProjectsByUserId(currentUserId);
     }
 }

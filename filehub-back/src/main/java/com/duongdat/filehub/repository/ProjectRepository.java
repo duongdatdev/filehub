@@ -32,4 +32,9 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     
     @Query("SELECT COUNT(f) FROM File f WHERE f.projectId = :projectId AND f.isDeleted = false")
     Long countFilesByProjectId(@Param("projectId") Long projectId);
+    
+    @Query("SELECT p FROM Project p JOIN UserProject up ON p.id = up.projectId " +
+           "WHERE up.userId = :userId AND up.isActive = true AND p.status != 'ARCHIVED' " +
+           "ORDER BY p.createdAt DESC")
+    List<Project> findProjectsByUserId(@Param("userId") Long userId);
 }

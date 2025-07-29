@@ -167,10 +167,10 @@ public class FileService {
             List<Long> accessibleProjectIds = userAuthorizationService.getAccessibleProjectIds();
             
             // If user has no accessible departments/projects, they can only see public files
-            if (accessibleDepartmentIds.isEmpty() || (accessibleDepartmentIds.size() == 1 && accessibleDepartmentIds.get(0) == -1L)) {
+            if (accessibleDepartmentIds.isEmpty()) {
                 accessibleDepartmentIds = List.of(-1L); // Use -1 as placeholder for no access
             }
-            if (accessibleProjectIds.isEmpty() || (accessibleProjectIds.size() == 1 && accessibleProjectIds.get(0) == -1L)) {
+            if (accessibleProjectIds.isEmpty()) {
                 accessibleProjectIds = List.of(-1L);
             }
             
@@ -222,7 +222,8 @@ public class FileService {
             throw new RuntimeException("You don't have permission to view files in this department");
         }
         
-        List<File> files = fileRepository.findByDepartmentIdAndIsDeletedFalse(departmentId);
+        // Only get department files that don't belong to projects
+        List<File> files = fileRepository.findByDepartmentIdAndProjectIdIsNullAndIsDeletedFalse(departmentId);
         return files.stream().map(this::convertToFileResponse).toList();
     }
     
@@ -242,21 +243,21 @@ public class FileService {
         Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
         Pageable pageable = PageRequest.of(page, size, sort);
         
-        // Get accessible departments and projects for the user
-        List<Long> accessibleDepartmentIds = userAuthorizationService.getAccessibleDepartmentIds();
-        List<Long> accessibleProjectIds = userAuthorizationService.getAccessibleProjectIds();
-        
         // If user is admin, they can see all files
         Page<File> filesPage;
         if (userAuthorizationService.isUserAdmin(userId)) {
             // Admin can see all files
             filesPage = fileRepository.findAllFilesWithFilters(filename, departmentCategoryId, departmentId, projectId, null, fileTypeId, contentType, pageable);
         } else {
+            // Get accessible departments and projects for the user
+            List<Long> accessibleDepartmentIds = userAuthorizationService.getAccessibleDepartmentIds();
+            List<Long> accessibleProjectIds = userAuthorizationService.getAccessibleProjectIds();
+            
             // If user has no accessible departments/projects, they can only see public files
-            if (accessibleDepartmentIds.isEmpty() || (accessibleDepartmentIds.size() == 1 && accessibleDepartmentIds.get(0) == -1L)) {
+            if (accessibleDepartmentIds.isEmpty()) {
                 accessibleDepartmentIds = List.of(-1L); // Use -1 as placeholder for no access
             }
-            if (accessibleProjectIds.isEmpty() || (accessibleProjectIds.size() == 1 && accessibleProjectIds.get(0) == -1L)) {
+            if (accessibleProjectIds.isEmpty()) {
                 accessibleProjectIds = List.of(-1L);
             }
             
@@ -356,16 +357,16 @@ public class FileService {
         else if (file.getUploaderId().equals(userId)) {
             canAccess = true;
         }
-        // File is in user's accessible department
-        else if (file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
+        // File is public
+        else if ("PUBLIC".equals(file.getVisibility())) {
             canAccess = true;
         }
-        // File is in user's accessible project
+        // Project files: only accessible to project members
         else if (file.getProjectId() != null && userAuthorizationService.canViewProjectFiles(file.getProjectId())) {
             canAccess = true;
         }
-        // File is public
-        else if ("PUBLIC".equals(file.getVisibility())) {
+        // Department files (without project): accessible to department members
+        else if (file.getProjectId() == null && file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
             canAccess = true;
         }
         
@@ -456,16 +457,16 @@ public class FileService {
         else if (file.getUploaderId().equals(userId)) {
             canAccess = true;
         }
-        // File is in user's accessible department
-        else if (file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
+        // File is public
+        else if ("PUBLIC".equals(file.getVisibility())) {
             canAccess = true;
         }
-        // File is in user's accessible project
+        // Project files: only accessible to project members
         else if (file.getProjectId() != null && userAuthorizationService.canViewProjectFiles(file.getProjectId())) {
             canAccess = true;
         }
-        // File is public
-        else if ("PUBLIC".equals(file.getVisibility())) {
+        // Department files (without project): accessible to department members
+        else if (file.getProjectId() == null && file.getDepartmentId() != null && userAuthorizationService.canViewDepartmentFiles(file.getDepartmentId())) {
             canAccess = true;
         }
         

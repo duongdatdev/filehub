@@ -3,6 +3,7 @@ package com.duongdat.filehub.service;
 import com.duongdat.filehub.dto.response.PageResponse;
 import com.duongdat.filehub.entity.Department;
 import com.duongdat.filehub.repository.DepartmentRepository;
+import com.duongdat.filehub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +20,7 @@ import java.util.Optional;
 public class DepartmentService {
     
     private final DepartmentRepository departmentRepository;
+    private final SecurityUtil securityUtil;
     
     public List<Department> getAllActiveDepartments() {
         return departmentRepository.findByIsActiveTrueOrderByName();
@@ -116,5 +118,12 @@ public class DepartmentService {
     
     public Long getActiveProjectCountByDepartment(Long departmentId) {
         return departmentRepository.countActiveProjectsByDepartmentId(departmentId);
+    }
+    
+    public List<Department> getCurrentUserDepartments() {
+        Long currentUserId = securityUtil.getCurrentUserId()
+                .orElseThrow(() -> new RuntimeException("User not authenticated"));
+        
+        return departmentRepository.findDepartmentsByUserId(currentUserId);
     }
 }

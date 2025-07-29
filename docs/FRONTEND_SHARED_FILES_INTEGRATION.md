@@ -110,6 +110,18 @@ To test the new features:
 5. Test filtering and pagination
 6. Test file download and view actions
 
+## Issues Fixed
+
+### Import/Export Issues
+- **Fixed**: Corrected import statements in `SharedFilesPage.vue` to use default imports for API services
+- **Fixed**: `departmentApi`, `projectApi`, and `fileTypeApi` are exported as default, not named exports
+- **Fixed**: Proper TypeScript interface imports for better type safety
+
+### Code Quality Improvements
+- **Added**: Helper method `buildFilterParams()` in `fileApi.ts` to reduce code duplication
+- **Refactored**: All filter parameter building now uses the centralized helper method
+- **Improved**: Type safety with proper interface definitions
+
 ## Development Server Status
 - Frontend running on: http://localhost:5173/
 - Backend running on: http://localhost:8080/ (via gradle task)

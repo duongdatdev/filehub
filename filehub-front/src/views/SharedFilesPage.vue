@@ -350,9 +350,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { fileApi, type FileResponse, type FileFilters } from '@/services/fileApi'
-import { departmentApi, type DepartmentResponse } from '@/services/departmentApi'
-import { projectApi, type ProjectResponse } from '@/services/projectApi'
-import { fileTypeApi, type FileTypeResponse } from '@/services/fileTypeApi'
+import departmentApi, { type DepartmentResponse } from '@/services/departmentApi'
+import projectApi, { type ProjectResponse } from '@/services/projectApi'
+import fileTypeApi, { type FileType as FileTypeResponse } from '@/services/fileTypeApi'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -464,8 +464,8 @@ const loadUserData = async () => {
       userProjects.value = projResponse.data.data
     }
 
-    if (typeResponse.success) {
-      fileTypes.value = typeResponse.data || []
+    if (typeResponse.success && typeResponse.data) {
+      fileTypes.value = typeResponse.data
     }
   } catch (error) {
     console.error('Error loading user data:', error)

@@ -145,4 +145,15 @@ public class ProjectController {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
+    
+    @GetMapping("/user")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<Project>>> getCurrentUserProjects() {
+        try {
+            List<Project> projects = projectService.getCurrentUserProjects();
+            return ResponseEntity.ok(ApiResponse.success("User projects retrieved successfully", projects));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
 }

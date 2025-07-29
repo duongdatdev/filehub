@@ -9,10 +9,22 @@ This feature allows users to view and access files uploaded by other users withi
 ### Access Permissions
 
 1. **Own Files**: Users can always view, download, and delete their own uploaded files
-2. **Department Files**: Users can view and download files uploaded by others in departments they are assigned to
-3. **Project Files**: Users can view and download files uploaded by others in projects they are assigned to
+2. **Department Files (non-project)**: Users can view and download files uploaded to departments they are assigned to, but only if those files don't belong to specific projects
+3. **Project Files**: Users can view and download files uploaded to projects they are assigned to, regardless of department membership
 4. **Public Files**: All users can view and download files marked as "PUBLIC"
 5. **Admin Access**: Administrators can access all files regardless of department/project assignments
+
+### Important Note on Project-Based Access Control
+
+**Files uploaded to projects are ONLY visible to users assigned to those specific projects**, even if other users are in the same department. This ensures project-level security and prevents unauthorized access to project-specific files.
+
+Example:
+- User A: Marketing Department, Project Alpha
+- User B: Marketing Department, Project Beta  
+- User C: Marketing Department, No Projects
+- File X: Uploaded to Marketing Department, Project Alpha
+
+Result: Only User A can see File X, even though all users are in Marketing Department.
 
 ### File Operations
 
@@ -94,9 +106,9 @@ GET /api/admin/files/shared
 The system checks access permissions in this order:
 1. **Admin**: Full access to all files
 2. **File Owner**: Access to own files
-3. **Department Member**: Access to files in assigned departments
-4. **Project Member**: Access to files in assigned projects
-5. **Public Files**: Access to files marked as public visibility
+3. **Public Files**: Access to files marked as public visibility
+4. **Project Files**: Access to files in assigned projects (takes priority over department membership)
+5. **Department Files (non-project)**: Access to department files that don't belong to specific projects
 
 ## Security Considerations
 
