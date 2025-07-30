@@ -1,5 +1,11 @@
 import api from './api'
 
+export interface ApiResponse<T> {
+  success: boolean
+  message: string
+  data: T
+}
+
 export interface DepartmentResponse {
   id: number
   name: string
@@ -117,7 +123,7 @@ const departmentApi = {
   },
 
   // Get user's assigned departments
-  getUserDepartments(): Promise<{ data: { data: Department[] } }> {
+  getUserDepartments(): Promise<ApiResponse<Department[]>> {
     return api.get('/departments/user')
   }
 }

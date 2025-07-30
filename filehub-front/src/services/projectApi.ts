@@ -1,5 +1,11 @@
 import api from './api'
 
+export interface ApiResponse<T> {
+  success: boolean
+  message: string
+  data: T
+}
+
 export interface ProjectResponse {
   id: number
   name: string
@@ -108,7 +114,7 @@ const projectApi = {
   },
 
   // Get user's assigned projects
-  getUserProjects(): Promise<{ data: { data: Project[] } }> {
+  getUserProjects(): Promise<ApiResponse<Project[]>> {
     return api.get('/projects/user')
   }
 }

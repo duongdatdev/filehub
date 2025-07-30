@@ -11,31 +11,22 @@
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <div class="flex flex-wrap gap-4 items-center">
           <div class="flex rounded-md shadow-sm">
-            <button
-              @click="currentView = 'all'"
-              :class="[
-                'px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                currentView === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
-              ]"
-            >
+            <button @click="currentView = 'all'" :class="[
+              'px-4 py-2 text-sm font-medium rounded-l-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              currentView === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+            ]">
               All Accessible Files
             </button>
-            <button
-              @click="currentView = 'department'"
-              :class="[
-                'px-4 py-2 text-sm font-medium border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                currentView === 'department' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
-              ]"
-            >
+            <button @click="currentView = 'department'" :class="[
+              'px-4 py-2 text-sm font-medium border-t border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              currentView === 'department' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+            ]">
               By Department
             </button>
-            <button
-              @click="currentView = 'project'"
-              :class="[
-                'px-4 py-2 text-sm font-medium rounded-r-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                currentView === 'project' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
-              ]"
-            >
+            <button @click="currentView = 'project'" :class="[
+              'px-4 py-2 text-sm font-medium rounded-r-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+              currentView === 'project' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
+            ]">
               By Project
             </button>
           </div>
@@ -43,17 +34,10 @@
           <!-- Department/Project Selector -->
           <div v-if="currentView === 'department'" class="flex items-center space-x-2">
             <label class="text-sm font-medium text-gray-700">Department:</label>
-            <select
-              v-model="selectedDepartmentId"
-              @change="onDepartmentChange"
-              class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
+            <select v-model="selectedDepartmentId" @change="onDepartmentChange"
+              class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="">Select Department</option>
-              <option
-                v-for="dept in userDepartments"
-                :key="dept.id"
-                :value="dept.id"
-              >
+              <option v-for="dept in userDepartments" :key="dept.id" :value="dept.id">
                 {{ dept.name }}
               </option>
             </select>
@@ -61,17 +45,10 @@
 
           <div v-if="currentView === 'project'" class="flex items-center space-x-2">
             <label class="text-sm font-medium text-gray-700">Project:</label>
-            <select
-              v-model="selectedProjectId"
-              @change="onProjectChange"
-              class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
+            <select v-model="selectedProjectId" @change="onProjectChange"
+              class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="">Select Project</option>
-              <option
-                v-for="project in userProjects"
-                :key="project.id"
-                :value="project.id"
-              >
+              <option v-for="project in userProjects" :key="project.id" :value="project.id">
                 {{ project.name }}
               </option>
             </select>
@@ -85,29 +62,18 @@
           <!-- Search by filename -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Search Files</label>
-            <input
-              v-model="filters.filename"
-              type="text"
-              placeholder="Enter filename..."
+            <input v-model="filters.filename" type="text" placeholder="Enter filename..."
               class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              @input="debouncedSearch"
-            />
+              @input="debouncedSearch" />
           </div>
 
           <!-- File Type Filter -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">File Type</label>
-            <select
-              v-model="filters.fileTypeId"
-              @change="applyFilters"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
+            <select v-model="filters.fileTypeId" @change="applyFilters"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="">All Types</option>
-              <option
-                v-for="type in fileTypes"
-                :key="type.id"
-                :value="type.id"
-              >
+              <option v-for="type in fileTypes" :key="type.id" :value="type.id">
                 {{ type.name }}
               </option>
             </select>
@@ -116,11 +82,8 @@
           <!-- Content Type Filter -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
-            <select
-              v-model="filters.contentType"
-              @change="applyFilters"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
+            <select v-model="filters.contentType" @change="applyFilters"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="">All Types</option>
               <option value="image/">Images</option>
               <option value="application/pdf">PDF</option>
@@ -132,11 +95,8 @@
           <!-- Sort -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-            <select
-              v-model="sortBy"
-              @change="applyFilters"
-              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
+            <select v-model="sortBy" @change="applyFilters"
+              class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="uploadedAt">Upload Date</option>
               <option value="originalFilename">Filename</option>
               <option value="fileSize">File Size</option>
@@ -147,32 +107,22 @@
 
         <div class="mt-4 flex justify-between items-center">
           <div class="flex items-center space-x-4">
-            <button
-              @click="clearFilters"
-              class="text-sm text-gray-600 hover:text-gray-900"
-            >
+            <button @click="clearFilters" class="text-sm text-gray-600 hover:text-gray-900">
               Clear Filters
             </button>
             <div class="flex items-center space-x-2">
               <label class="text-sm text-gray-700">Sort Order:</label>
-              <button
-                @click="toggleSortDirection"
-                class="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800"
-              >
+              <button @click="toggleSortDirection"
+                class="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800">
                 <span>{{ sortDirection === 'DESC' ? 'Newest First' : 'Oldest First' }}</span>
-                <svg
-                  class="w-4 h-4"
-                  :class="{ 'rotate-180': sortDirection === 'ASC' }"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg class="w-4 h-4" :class="{ 'rotate-180': sortDirection === 'ASC' }" fill="none"
+                  stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
             </div>
           </div>
-          
+
           <div class="text-sm text-gray-600">
             Showing {{ files.length }} of {{ totalElements }} files
           </div>
@@ -186,18 +136,9 @@
       </div>
 
       <div v-else-if="files.length === 0" class="text-center py-12">
-        <svg
-          class="mx-auto h-12 w-12 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <h3 class="mt-2 text-sm font-medium text-gray-900">No files found</h3>
         <p class="mt-1 text-sm text-gray-500">
@@ -206,11 +147,8 @@
       </div>
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div
-          v-for="file in files"
-          :key="file.id"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
-        >
+        <div v-for="file in files" :key="file.id"
+          class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
           <!-- File Header -->
           <div class="p-4 border-b border-gray-200">
             <div class="flex items-start justify-between">
@@ -224,10 +162,8 @@
               </div>
               <div class="flex items-center space-x-1 ml-2">
                 <!-- Visibility Badge -->
-                <span
-                  :class="getVisibilityBadgeClass(file.visibility)"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                >
+                <span :class="getVisibilityBadgeClass(file.visibility)"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium">
                   {{ file.visibility }}
                 </span>
               </div>
@@ -268,17 +204,12 @@
             <!-- Tags -->
             <div v-if="file.tags && file.tags.length > 0" class="mt-3">
               <div class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in file.tags.slice(0, 3)"
-                  :key="tag"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                >
+                <span v-for="tag in file.tags.slice(0, 3)" :key="tag"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {{ tag }}
                 </span>
-                <span
-                  v-if="file.tags.length > 3"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-                >
+                <span v-if="file.tags.length > 3"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                   +{{ file.tags.length - 3 }}
                 </span>
               </div>
@@ -289,27 +220,26 @@
           <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
             <div class="flex justify-between items-center">
               <div class="flex space-x-2">
-                <button
-                  @click="downloadFile(file)"
-                  class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
+                <button @click="downloadFile(file)"
+                  class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                   <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4m5 10v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 10v6m0 0l-4-4m4 4l4-4m5 10v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1" />
                   </svg>
                   Download
                 </button>
-                <button
-                  @click="viewFile(file)"
-                  class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
+                <button @click="viewFile(file)"
+                  class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                   <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                   View
                 </button>
               </div>
-              
+
               <!-- Owner indicator -->
               <div v-if="file.uploaderId === currentUserId" class="text-xs text-green-600 font-medium">
                 Your File
@@ -322,23 +252,17 @@
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-8 flex justify-center">
         <nav class="flex items-center space-x-2">
-          <button
-            @click="goToPage(currentPage - 1)"
-            :disabled="currentPage === 0"
-            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 0"
+            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
             Previous
           </button>
-          
+
           <span class="px-3 py-2 text-sm text-gray-700">
             Page {{ currentPage + 1 }} of {{ totalPages }}
           </span>
-          
-          <button
-            @click="goToPage(currentPage + 1)"
-            :disabled="currentPage >= totalPages - 1"
-            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+
+          <button @click="goToPage(currentPage + 1)" :disabled="currentPage >= totalPages - 1"
+            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
             Next
           </button>
         </nav>
@@ -449,6 +373,8 @@ const loadSharedFiles = async () => {
 
 const loadUserData = async () => {
   try {
+    console.log('Starting to load user data...')
+    
     // Load user's departments and projects
     const [deptResponse, projResponse, typeResponse] = await Promise.all([
       departmentApi.getUserDepartments(),
@@ -456,19 +382,64 @@ const loadUserData = async () => {
       fileTypeApi.getAllFileTypes()
     ])
 
-    if (deptResponse.data?.data) {
-      userDepartments.value = deptResponse.data.data
+    console.log('Raw API responses:')
+    console.log('Department response:', deptResponse)
+    console.log('Project response:', projResponse)
+    console.log('File type response:', typeResponse)
+    console.log('File type response type:', typeof typeResponse)
+    console.log('File type response keys:', typeResponse ? Object.keys(typeResponse) : 'null')
+    console.log('Is file type response an array?', Array.isArray(typeResponse))
+
+    // Backend returns ApiResponse<List<Department>> format: { success, message, data }
+    if (deptResponse?.success && deptResponse.data) {
+      userDepartments.value = deptResponse.data
+      console.log('Departments set:', userDepartments.value)
+    } else {
+      console.warn('Department response structure unexpected:', deptResponse)
     }
 
-    if (projResponse.data?.data) {
-      userProjects.value = projResponse.data.data
+    // Backend returns ApiResponse<List<Project>> format: { success, message, data }
+    if (projResponse?.success && projResponse.data) {
+      userProjects.value = projResponse.data
+      console.log('Projects set:', userProjects.value)
+    } else {
+      console.warn('Project response structure unexpected:', projResponse)
     }
 
-    if (typeResponse.success && typeResponse.data) {
+    // Handle different possible response structures for file types
+    if (typeResponse?.success && typeResponse.data && Array.isArray(typeResponse.data)) {
+      // Standard API response with success flag
+      console.log('Using standard API response structure for file types')
       fileTypes.value = typeResponse.data
+      console.log('File types set:', fileTypes.value)
+    } else if (Array.isArray(typeResponse)) {
+      // Direct array response
+      console.log('Using direct array response structure for file types')
+      fileTypes.value = typeResponse
+      console.log('File types set:', fileTypes.value)
+    } else {
+      console.warn('File type response structure unexpected:', typeResponse)
+      // Try to extract data anyway if it exists
+      if (typeResponse && typeof typeResponse === 'object' && typeResponse.data) {
+        fileTypes.value = typeResponse.data
+        console.log('File types set from fallback:', fileTypes.value)
+      }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error loading user data:', error)
+    if (error?.response) {
+      console.error('Error response:', error.response.data)
+      console.error('Error status:', error.response.status)
+    }
+    if (error?.request) {
+      console.error('Error request:', error.request)
+    }
+  }
+  finally {
+    console.log('Final user data state:')
+    console.log('File types:', fileTypes.value)
+    console.log('User departments:', userDepartments.value)
+    console.log('User projects:', userProjects.value)
   }
 }
 
