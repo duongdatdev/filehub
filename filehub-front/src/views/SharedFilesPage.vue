@@ -79,16 +79,15 @@
             </select>
           </div>
 
-          <!-- Content Type Filter -->
+          <!-- Department Category Filter -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
-            <select v-model="filters.contentType" @change="applyFilters"
+            <label class="block text-sm font-medium text-gray-700 mb-2">Department Category</label>
+            <select v-model="filters.departmentCategoryId" @change="applyFilters"
               class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-              <option value="">All Types</option>
-              <option value="image/">Images</option>
-              <option value="application/pdf">PDF</option>
-              <option value="application/">Documents</option>
-              <option value="video/">Videos</option>
+              <option value="">All Categories</option>
+              <option v-for="category in availableDepartmentCategories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
             </select>
           </div>
 
@@ -277,6 +276,7 @@ import { fileApi, type FileResponse, type FileFilters } from '@/services/fileApi
 import departmentApi, { type DepartmentResponse } from '@/services/departmentApi'
 import projectApi, { type ProjectResponse } from '@/services/projectApi'
 import fileTypeApi, { type FileType as FileTypeResponse } from '@/services/fileTypeApi'
+import departmentCategoryApi, { type DepartmentCategory } from '@/services/departmentCategoryApi'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -294,6 +294,7 @@ const pageSize = ref(12)
 const userDepartments = ref<DepartmentResponse[]>([])
 const userProjects = ref<ProjectResponse[]>([])
 const fileTypes = ref<FileTypeResponse[]>([])
+const departmentCategories = ref<DepartmentCategory[]>([])
 
 // Selections
 const selectedDepartmentId = ref<number | ''>('')
@@ -306,7 +307,6 @@ const filters = reactive<FileFilters>({
   departmentId: undefined,
   projectId: undefined,
   fileTypeId: undefined,
-  contentType: '',
   page: 0,
   size: 12
 })
@@ -317,8 +317,16 @@ const sortDirection = ref<'ASC' | 'DESC'>('DESC')
 // Computed
 const currentUserId = computed(() => authStore.user?.id)
 
+// Available department categories based on current view and selected department
+const availableDepartmentCategories = computed(() => {
+  if (currentView.value === 'department' && selectedDepartmentId.value) {
+    return departmentCategories.value.filter(cat => cat.departmentId === Number(selectedDepartmentId.value))
+  }
+  return departmentCategories.value
+})
+
 // Debounced search
-let searchTimeout: NodeJS.Timeout
+let searchTimeout: number
 const debouncedSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => {
@@ -330,6 +338,10 @@ const debouncedSearch = () => {
 watch(currentView, () => {
   selectedDepartmentId.value = ''
   selectedProjectId.value = ''
+  // Clear filters when view changes
+  filters.departmentCategoryId = undefined
+  filters.departmentId = undefined
+  filters.projectId = undefined
   clearFilters()
 })
 
@@ -345,29 +357,58 @@ const loadSharedFiles = async () => {
       sortDirection: sortDirection.value
     }
 
-    let response
-    if (currentView.value === 'all') {
-      response = await fileApi.getSharedFiles(params)
-    } else if (currentView.value === 'department' && selectedDepartmentId.value) {
-      response = await fileApi.getSharedFilesByDepartment(selectedDepartmentId.value as number, params)
-    } else if (currentView.value === 'project' && selectedProjectId.value) {
-      response = await fileApi.getSharedFilesByProject(selectedProjectId.value as number, params)
-    } else {
-      files.value = []
-      totalPages.value = 0
-      totalElements.value = 0
-      return
-    }
+    console.log('Loading shared files with params:', params)
+    console.log('Current view:', currentView.value)
+    console.log('Selected department ID:', selectedDepartmentId.value)
+    console.log('Selected project ID:', selectedProjectId.value)
+
+    // Always use the general shared files endpoint with filters
+    const response = await fileApi.getSharedFiles(params)
+
+    console.log('Shared files response:', response)
 
     if (response.success && response.data) {
       files.value = response.data.content
       totalPages.value = response.data.totalPages
       totalElements.value = response.data.totalElements
+      console.log('Loaded files:', files.value.length)
+    } else {
+      console.warn('Failed to load shared files:', response)
     }
   } catch (error) {
     console.error('Error loading shared files:', error)
   } finally {
     loading.value = false
+  }
+}
+
+// Load department categories for a specific department
+const loadDepartmentCategories = async (departmentId: number) => {
+  try {
+    console.log(`Loading categories for department ID: ${departmentId}`)
+    const response = await departmentCategoryApi.getCategoriesByDepartment(departmentId)
+    console.log(`Department ${departmentId} categories response:`, response)
+    
+    if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      console.log(`Found ${response.data.length} categories for department ${departmentId}`)
+      // Add categories to the existing array, avoiding duplicates
+      const newCategories = response.data.filter(newCat => 
+        !departmentCategories.value.some(existingCat => existingCat.id === newCat.id)
+      )
+      departmentCategories.value.push(...newCategories)
+      console.log(`Added ${newCategories.length} new categories for department ${departmentId}`)
+    } else if (Array.isArray(response) && response.length > 0) {
+      // Handle direct array response
+      console.log(`Found ${response.length} categories (direct array) for department ${departmentId}`)
+      const newCategories = response.filter(newCat => 
+        !departmentCategories.value.some(existingCat => existingCat.id === newCat.id)
+      )
+      departmentCategories.value.push(...newCategories)
+    } else {
+      console.log(`No categories found for department ${departmentId}`)
+    }
+  } catch (error) {
+    console.error(`Failed to load department categories for department ${departmentId}:`, error)
   }
 }
 
@@ -425,6 +466,14 @@ const loadUserData = async () => {
         console.log('File types set from fallback:', fileTypes.value)
       }
     }
+
+    // Load department categories for all user departments
+    if (userDepartments.value.length > 0) {
+      console.log('Loading department categories for all user departments')
+      for (const department of userDepartments.value) {
+        await loadDepartmentCategories(department.id)
+      }
+    }
   } catch (error: any) {
     console.error('Error loading user data:', error)
     if (error?.response) {
@@ -440,15 +489,38 @@ const loadUserData = async () => {
     console.log('File types:', fileTypes.value)
     console.log('User departments:', userDepartments.value)
     console.log('User projects:', userProjects.value)
+    console.log('Department categories:', departmentCategories.value)
   }
 }
 
-const onDepartmentChange = () => {
+const onDepartmentChange = async () => {
+  console.log('Department changed to:', selectedDepartmentId.value)
+  
+  // Clear category filter when department changes
+  filters.departmentCategoryId = undefined
+  
+  // Set the department filter
+  filters.departmentId = selectedDepartmentId.value ? Number(selectedDepartmentId.value) : undefined
+  
+  console.log('Updated filters after department change:', filters)
+  
+  // Load categories for the selected department
+  if (selectedDepartmentId.value) {
+    await loadDepartmentCategories(Number(selectedDepartmentId.value))
+  }
+  
   currentPage.value = 0
   loadSharedFiles()
 }
 
 const onProjectChange = () => {
+  console.log('Project changed to:', selectedProjectId.value)
+  
+  // Set the project filter
+  filters.projectId = selectedProjectId.value ? Number(selectedProjectId.value) : undefined
+  
+  console.log('Updated filters after project change:', filters)
+  
   currentPage.value = 0
   loadSharedFiles()
 }
@@ -464,7 +536,6 @@ const clearFilters = () => {
   filters.departmentId = undefined
   filters.projectId = undefined
   filters.fileTypeId = undefined
-  filters.contentType = ''
   currentPage.value = 0
   loadSharedFiles()
 }
@@ -563,6 +634,7 @@ onMounted(async () => {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  line-clamp: 2;
   overflow: hidden;
 }
 </style>
