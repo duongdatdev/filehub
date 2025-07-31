@@ -345,6 +345,9 @@ const isActiveRoute = (path: string): boolean => {
   if (path === '/') {
     return route.path === '/'
   }
+  if (path === '/files') {
+    return route.path === '/files' // Exact match for "My Files" to avoid conflict with "/files/shared"
+  }
   return route.path.startsWith(path)
 }
 
