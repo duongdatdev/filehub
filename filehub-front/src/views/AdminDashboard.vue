@@ -1,18 +1,34 @@
 <template>
-  <div class="min-h-screen bg-gray-50 pt-16">
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <!-- Header -->
-      <div class="px-4 py-4 sm:px-0">
-        <div class="border-b border-gray-200 pb-4">
-          <div class="flex justify-between items-center">
-            <div>
-              <h1 class="text-3xl font-bold leading-tight text-gray-900">Admin Dashboard</h1>
-              <p class="mt-2 text-sm text-gray-600">Manage users, departments, projects, and system settings</p>
+  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <!-- Enhanced Header -->
+    <div class="bg-white border-b border-gray-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header Content -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between py-6">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-4">
+                <h1 class="text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
+                  Admin Dashboard
+                </h1>
+                <p class="mt-2 text-sm text-gray-600 max-w-2xl">
+                  Monitor and manage your organization's operations from a centralized dashboard
+                </p>
+              </div>
             </div>
+          </div>
+          <div class="mt-4 sm:mt-0 sm:ml-4">
             <button
               @click="refreshDashboard"
               :disabled="isLoadingStats || isLoadingActivity"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-lg shadow-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
             >
               <svg
                 :class="['h-4 w-4 mr-2', { 'animate-spin': isLoadingStats || isLoadingActivity }]"
@@ -22,11 +38,15 @@
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              {{ isLoadingStats || isLoadingActivity ? 'Refreshing...' : 'Refresh' }}
+              {{ isLoadingStats || isLoadingActivity ? 'Refreshing...' : 'Refresh Dashboard' }}
             </button>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
       <!-- Quick Stats -->
       <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -42,7 +62,7 @@
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-300 animate-pulse rounded"></span>
                     <span v-else>{{ stats.totalUsers }}</span>
                   </dd>
                 </dl>
@@ -70,7 +90,7 @@
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Departments</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-300 animate-pulse rounded"></span>
                     <span v-else>{{ stats.totalDepartments }}</span>
                   </dd>
                 </dl>
@@ -98,7 +118,7 @@
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Active Projects</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-if="isLoadingStats" class="inline-block w-8 h-6 bg-gray-300 animate-pulse rounded"></span>
                     <span v-else>{{ stats.activeProjects }}</span>
                   </dd>
                 </dl>
@@ -126,7 +146,7 @@
                 <dl>
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Files</dt>
                   <dd class="text-lg font-medium text-gray-900">
-                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-200 animate-pulse rounded"></span>
+                    <span v-if="isLoadingStats" class="inline-block w-12 h-6 bg-gray-300 animate-pulse rounded"></span>
                     <span v-else>{{ stats.totalFiles }}</span>
                   </dd>
                 </dl>
@@ -157,7 +177,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/users" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   User Management
@@ -167,7 +187,7 @@
                 Manage user accounts, roles, and permissions. View user activity and status.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -184,7 +204,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/departments" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   Department Management
@@ -194,7 +214,7 @@
                 Organize users into departments, assign managers, and track department statistics.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -211,7 +231,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/projects" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   Project Management
@@ -221,7 +241,7 @@
                 Create and manage projects, assign team members, and track project progress.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -238,7 +258,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/assignments" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   User Assignments
@@ -248,7 +268,7 @@
                 Assign users to departments and projects. Manage team structures and hierarchies.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -265,7 +285,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/files" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   File Management
@@ -275,7 +295,7 @@
                 View and manage all files in the system. Monitor file usage and storage.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -292,7 +312,7 @@
               </span>
             </div>
             <div class="mt-8">
-              <h3 class="text-lg font-medium">
+              <h3 class="text-lg font-medium text-gray-700">
                 <router-link to="/admin/reports" class="focus:outline-none">
                   <span class="absolute inset-0" aria-hidden="true"></span>
                   System Reports
@@ -302,7 +322,7 @@
                 Generate reports on user activity, project status, and system usage statistics.
               </p>
             </div>
-            <span class="pointer-events-none absolute top-6 right-6 text-gray-300 group-hover:text-gray-400" aria-hidden="true">
+            <span class="pointer-events-none absolute top-6 right-6 text-gray-400 group-hover:text-gray-500" aria-hidden="true">
               <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
@@ -319,13 +339,13 @@
             <div class="space-y-4">
               <div v-for="i in 3" :key="i" class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                  <div class="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+                  <div class="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
                   <div>
-                    <div class="w-48 h-4 bg-gray-200 rounded animate-pulse mb-2"></div>
-                    <div class="w-32 h-3 bg-gray-200 rounded animate-pulse"></div>
+                    <div class="w-48 h-4 bg-gray-300 rounded animate-pulse mb-2"></div>
+                    <div class="w-32 h-3 bg-gray-300 rounded animate-pulse"></div>
                   </div>
                 </div>
-                <div class="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
+                <div class="w-16 h-3 bg-gray-300 rounded animate-pulse"></div>
               </div>
             </div>
           </div>

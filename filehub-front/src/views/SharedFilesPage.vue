@@ -232,6 +232,37 @@
           </div>
 
           <div class="flex items-center space-x-4">
+            <!-- View Layout Toggle -->
+            <div class="flex rounded-lg shadow-sm bg-gray-50 p-0.5">
+              <button @click="viewLayout = 'grid'" :class="[
+                'px-3 py-1.5 text-xs font-semibold rounded border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 flex items-center space-x-1',
+                viewLayout === 'grid' ? 'bg-white text-blue-700 shadow-md scale-105' : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+              ]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                </svg>
+                <span>Grid</span>
+              </button>
+              <button @click="viewLayout = 'list'" :class="[
+                'px-3 py-1.5 text-xs font-semibold rounded border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 flex items-center space-x-1',
+                viewLayout === 'list' ? 'bg-white text-blue-700 shadow-md scale-105' : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+              ]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                <span>List</span>
+              </button>
+              <button @click="viewLayout = 'table'" :class="[
+                'px-3 py-1.5 text-xs font-semibold rounded border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 flex items-center space-x-1',
+                viewLayout === 'table' ? 'bg-white text-blue-700 shadow-md scale-105' : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
+              ]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0V4a1 1 0 011-1h3M3 10V9a2 2 0 012-2h14a2 2 0 012 2v1M3 10v11a2 2 0 002 2h14a2 2 0 002-2V10"/>
+                </svg>
+                <span>Table</span>
+              </button>
+            </div>
+            
             <div class="text-xs text-gray-600 bg-gradient-to-r from-gray-50 to-blue-50 px-2 py-1 rounded border border-gray-200">
               <span class="font-bold text-blue-600">{{ files.length }}</span> 
               <span class="text-gray-500">of</span> 
@@ -290,8 +321,8 @@
         </button>
       </div>
 
-      <!-- Files Grid -->
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <!-- Files Grid View -->
+      <div v-if="viewLayout === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div v-for="file in files" :key="file.id"
           class="group bg-white rounded-lg shadow border border-gray-100 hover:shadow-lg hover:border-gray-200 transition-all duration-200 overflow-hidden transform hover:-translate-y-0.5">
           <!-- File Header -->
@@ -444,6 +475,259 @@
         </div>
       </div>
 
+      <!-- Files List View -->
+      <div v-else-if="viewLayout === 'list'" class="space-y-2">
+        <div v-for="file in files" :key="file.id" 
+          class="bg-white rounded-lg shadow border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 p-4 group">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4 flex-1 min-w-0">
+              <!-- File Icon & Basic Info -->
+              <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              
+              <!-- File Details -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-1">
+                  <h3 class="text-sm font-bold text-gray-900 truncate">
+                    {{ file.title || file.originalFilename }}
+                  </h3>
+                  <span :class="getVisibilityBadgeClass(file.visibility)"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold shadow-sm flex-shrink-0">
+                    {{ file.visibility }}
+                  </span>
+                  <div v-if="file.uploaderId === currentUserId" 
+                    class="flex items-center text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex-shrink-0">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Your File
+                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                  <div class="flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    <span class="font-medium">{{ file.uploaderName }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ formatDate(file.uploadedAt) }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="font-medium">{{ file.fileTypeName || getFileTypeFromContent(file.contentType) }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                    </svg>
+                    <span class="font-medium">{{ formatFileSize(file.fileSize) }}</span>
+                  </div>
+                  <div class="flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4"/>
+                    </svg>
+                    <span class="font-medium">{{ file.downloadCount }} downloads</span>
+                  </div>
+                </div>
+                
+                <!-- Department/Project Info -->
+                <div v-if="file.departmentName || file.projectName" class="flex items-center space-x-2 mt-1">
+                  <div v-if="file.departmentName" class="flex items-center text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                    <svg class="w-3 h-3 mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/>
+                    </svg>
+                    <span class="font-medium">{{ file.departmentName }}</span>
+                  </div>
+                  <div v-if="file.projectName" class="flex items-center text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                    <svg class="w-3 h-3 mr-1 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                    </svg>
+                    <span class="font-medium">{{ file.projectName }}</span>
+                  </div>
+                </div>
+                
+                <!-- Description -->
+                <div v-if="file.description" class="mt-1">
+                  <p class="text-xs text-gray-600 line-clamp-1">{{ file.description }}</p>
+                </div>
+                
+                <!-- Tags -->
+                <div v-if="file.tags && file.tags.length > 0" class="flex flex-wrap gap-1 mt-1">
+                  <span v-for="tag in file.tags.slice(0, 4)" :key="tag"
+                    class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                    {{ tag }}
+                  </span>
+                  <span v-if="file.tags.length > 4"
+                    class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                    +{{ file.tags.length - 4 }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+              <button @click="downloadFile(file)"
+                class="inline-flex items-center px-3 py-2 border-0 text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4m5 10v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1" />
+                </svg>
+                Download
+              </button>
+              <button @click="viewFile(file)"
+                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Files Table View -->
+      <div v-else-if="viewLayout === 'table'" class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gradient-to-r from-gray-50 to-blue-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">File</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Size</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Uploader</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Date</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Access</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Downloads</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Location</th>
+                <th class="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="file in files" :key="file.id" class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+                      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                    </div>
+                    <div class="ml-3">
+                      <div class="flex items-center space-x-2">
+                        <div class="text-sm font-bold text-gray-900 max-w-xs truncate">
+                          {{ file.title || file.originalFilename }}
+                        </div>
+                        <div v-if="file.uploaderId === currentUserId" 
+                          class="flex items-center text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                          </svg>
+                          Your File
+                        </div>
+                      </div>
+                      <div v-if="file.description" class="text-xs text-gray-500 max-w-xs truncate">
+                        {{ file.description }}
+                      </div>
+                      <div v-if="file.tags && file.tags.length > 0" class="flex flex-wrap gap-1 mt-1">
+                        <span v-for="tag in file.tags.slice(0, 2)" :key="tag"
+                          class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {{ tag }}
+                        </span>
+                        <span v-if="file.tags.length > 2"
+                          class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                          +{{ file.tags.length - 2 }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm font-medium text-gray-900">
+                    {{ file.fileTypeName || getFileTypeFromContent(file.contentType) }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 font-medium">{{ formatFileSize(file.fileSize) }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                      <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                    </div>
+                    <div class="text-sm font-medium text-gray-900">{{ file.uploaderName }}</div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900">{{ formatDate(file.uploadedAt) }}</div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span :class="getVisibilityBadgeClass(file.visibility)"
+                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold">
+                    {{ file.visibility }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center text-sm text-gray-900">
+                    <svg class="w-4 h-4 mr-1 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4"/>
+                    </svg>
+                    <span class="font-medium">{{ file.downloadCount }}</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="space-y-1">
+                    <div v-if="file.departmentName" class="flex items-center text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                      <svg class="w-3 h-3 mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/>
+                      </svg>
+                      <span class="font-medium">{{ file.departmentName }}</span>
+                    </div>
+                    <div v-if="file.projectName" class="flex items-center text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded border border-purple-200">
+                      <svg class="w-3 h-3 mr-1 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                      </svg>
+                      <span class="font-medium">{{ file.projectName }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-center">
+                  <div class="flex justify-center space-x-2">
+                    <button @click="downloadFile(file)"
+                      class="inline-flex items-center px-3 py-1.5 border-0 text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-4-4m4 4l4-4m5 10v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1" />
+                      </svg>
+                      Download
+                    </button>
+                    <button @click="viewFile(file)"
+                      class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
+                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Preview
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-12 bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
         <nav class="flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -509,6 +793,7 @@ const authStore = useAuthStore()
 
 // Reactive data
 const currentView = ref<'all' | 'department' | 'project'>('all')
+const viewLayout = ref<'grid' | 'list' | 'table'>('grid')
 const files = ref<FileResponse[]>([])
 const loading = ref(false)
 const currentPage = ref(0)

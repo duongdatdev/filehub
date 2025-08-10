@@ -3,18 +3,12 @@ package com.duongdat.filehub.service.impl;
 import com.duongdat.filehub.service.GoogleDriveService;
 import com.duongdat.filehub.dto.response.GoogleDriveUploadResponse;
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +21,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.annotation.PostConstruct;
 import java.io.ByteArrayOutputStream;
-import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,6 +63,9 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     
     @Autowired(required = false)
     private Drive configuredDriveService; // Injected from configuration if available
+    
+    @Autowired
+    private GoogleDriveTokenRefreshService tokenRefreshService;
     
     @PostConstruct
     public void initializeDriveService() {
@@ -121,26 +117,15 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     }
     
     /**
-     * Get OAuth2 credential for Google Drive API access
+     * Get OAuth2 credential for Google Drive API access with automatic refresh
      */
     private Credential getOAuth2Credential() throws Exception {
-        // Load client secrets from OAuth2 credentials file
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
-                GsonFactory.getDefaultInstance(),
-                new FileReader(clientSecretsPath));
-        
-        // Build flow and trigger user authorization request
-        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-        
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, jsonFactory, clientSecrets, Collections.singletonList(DriveScopes.DRIVE))
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(tokensDirectoryPath)))
-                .setAccessType("offline")
-                .build();
-        
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        try {
+            return tokenRefreshService.getCredentialWithRefresh();
+        } catch (Exception e) {
+            log.error("Failed to get OAuth2 credential with refresh service: {}", e.getMessage(), e);
+            throw new Exception("OAuth2 authentication failed: " + e.getMessage());
+        }
     }
     
     private void initializeSimulation() {
@@ -173,6 +158,18 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
     
     private String uploadToRealGoogleDrive(MultipartFile file, String filename) throws Exception {
         try {
+            // Validate and refresh credential if needed
+            if (credential != null && !tokenRefreshService.isCredentialValid(credential)) {
+                log.warn("Current credential is invalid, attempting to get new credential...");
+                credential = getOAuth2Credential();
+                // Recreate drive service with new credential
+                HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+                JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+                driveService = new Drive.Builder(httpTransport, jsonFactory, credential)
+                        .setApplicationName(applicationName)
+                        .build();
+            }
+            
             // Create file metadata
             File fileMetadata = new File();
             fileMetadata.setName(filename);
@@ -201,6 +198,14 @@ public class GoogleDriveServiceRealImpl implements GoogleDriveService {
             
         } catch (Exception e) {
             log.error("Failed to upload file to real Google Drive: {}", e.getMessage(), e);
+            
+            // If it's a token-related error, try to clear tokens and suggest re-authorization
+            if (e.getMessage().contains("invalid_grant") || e.getMessage().contains("Token has been expired")) {
+                log.warn("OAuth2 token has expired or been revoked. Clearing stored tokens...");
+                tokenRefreshService.clearStoredTokens();
+                throw new Exception("OAuth2 token expired. Please restart the application to re-authorize Google Drive access.");
+            }
+            
             throw new Exception("Real Google Drive upload failed: " + e.getMessage());
         }
     }
