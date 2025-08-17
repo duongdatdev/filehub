@@ -1,5 +1,40 @@
 import apiService, { type ApiResponse } from './api'
 
+// AI Analysis interfaces
+export interface FileAnalysisResponse {
+  summary: string
+  category: string
+  tags: string[]
+  departmentSuggestion?: string
+  projectSuggestion?: string
+  confidenceScore: number
+  recommendations: string[]
+  extractedMetadata: Record<string, any>
+  suggestedTitle?: string
+  suggestedDescription?: string
+  // Enhanced recommendations
+  suggestedFileTypeId?: number
+  suggestedFileTypeName?: string
+  suggestedDepartmentCategoryId?: number
+  suggestedDepartmentCategoryName?: string
+  suggestedVisibility?: 'PRIVATE' | 'DEPARTMENT' | 'PUBLIC'
+  suggestedPriority?: 'LOW' | 'MEDIUM' | 'HIGH'
+  contentAnalysis?: {
+    documentType: string
+    technicalLevel: 'BASIC' | 'INTERMEDIATE' | 'ADVANCED'
+    estimatedImportance: 'LOW' | 'MEDIUM' | 'HIGH'
+    suggestedAccess: string[]
+    relatedKeywords: string[]
+  }
+}
+
+export interface FileUploadWithAnalysisResponse {
+  fileResponse: FileResponse
+  analysisResponse?: FileAnalysisResponse
+  analysisEnabled: boolean
+  analysisMessage: string
+}
+
 // File interfaces
 export interface FileUploadRequest {
   title?: string
@@ -10,6 +45,7 @@ export interface FileUploadRequest {
   fileTypeId?: number
   tags?: string
   visibility?: 'PRIVATE' | 'DEPARTMENT' | 'PUBLIC'
+  enableAiAnalysis?: boolean
 }
 
 export interface FileResponse {
@@ -101,13 +137,35 @@ class FileApiService {
   }
 
   /**
-   * Upload a file with metadata
+   * Upload a file with metadata and optional AI analysis
    */
-  async uploadFile(formData: FormData): Promise<ApiResponse<FileResponse>> {
+  async uploadFile(formData: FormData): Promise<ApiResponse<FileUploadWithAnalysisResponse>> {
     return await apiService.post('/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    })
+  }
+
+  /**
+   * Analyze an existing file with AI
+   */
+  async analyzeExistingFile(
+    fileId: number, 
+    options?: {
+      departmentId?: number
+      projectId?: number
+      description?: string
+    }
+  ): Promise<ApiResponse<FileAnalysisResponse>> {
+    const params = new URLSearchParams()
+    if (options?.departmentId) params.append('departmentId', options.departmentId.toString())
+    if (options?.projectId) params.append('projectId', options.projectId.toString())
+    if (options?.description) params.append('description', options.description)
+    
+    const url = `/files/${fileId}/analyze${params.toString() ? `?${params.toString()}` : ''}`
+    return await apiService.post(url, undefined, {
+      timeout: 60000, // 60 seconds timeout for AI analysis
     })
   }
 

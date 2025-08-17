@@ -94,6 +94,28 @@
                   <h4 class="font-medium text-gray-900">{{ file.name }}</h4>
                   <p class="text-sm text-gray-500">{{ formatFileSize(file.size) }}</p>
                   
+                  <!-- AI Suggestions Component -->
+                  <PreUploadAiSuggestions
+                    :analysis="file.aiSuggestions"
+                    :is-analyzing="file.isAnalyzing"
+                    :error="file.analysisError"
+                    :departments="departments"
+                    :projects="projects"
+                    :file-types="fileTypes"
+                    :department-categories="departmentCategories"
+                    @analyze-file="analyzeFileBeforeUpload(file)"
+                    @retry-analysis="analyzeFileBeforeUpload(file)"
+                    @apply-title="(title) => applyAiSuggestion(index, 'title', title)"
+                    @apply-description="(description) => applyAiSuggestion(index, 'description', description)"
+                    @apply-department="(departmentId) => applyAiSuggestion(index, 'departmentId', departmentId)"
+                    @apply-project="(projectId) => applyAiSuggestion(index, 'projectId', projectId)"
+                    @apply-tags="(tags) => applyAiSuggestion(index, 'tags', tags)"
+                    @apply-file-type="(fileTypeId) => applyAiSuggestion(index, 'fileTypeId', fileTypeId)"
+                    @apply-department-category="(categoryId, departmentId) => applyDepartmentCategoryWithDepartment(index, categoryId, departmentId)"
+                    @apply-visibility="(visibility) => applyAiSuggestion(index, 'visibility', visibility)"
+                    @apply-all="(suggestions) => applyAllAiSuggestions(index, suggestions)"
+                  />
+                  
                   <!-- File Details Form -->
                   <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -461,6 +483,8 @@ import departmentCategoryApi, { type DepartmentCategory } from '@/services/depar
 import departmentApi, { type Department } from '@/services/departmentApi'
 import projectApi, { type Project } from '@/services/projectApi'
 import fileTypeApi, { type FileType } from '@/services/fileTypeApi'
+import PreUploadAiSuggestions from '@/components/files/PreUploadAiSuggestions.vue'
+import aiAnalysisApi from '@/services/aiAnalysisApi'
 
 // Reactive data
 const isDragOver = ref(false)
@@ -535,7 +559,11 @@ const addFiles = (files: File[]) => {
     uploading: false,
     uploaded: false,
     progress: 0,
-    error: null
+    error: null,
+    // AI Analysis properties (pre-upload only)
+    aiSuggestions: null,
+    isAnalyzing: false,
+    analysisError: null
   }))
   
   selectedFiles.value.push(...newFiles)
@@ -585,8 +613,8 @@ const uploadFiles = async () => {
       file.uploading = false
       file.uploaded = true
       
-      // Add to files list
-      files.value.unshift(response.data)
+      // Add to files list (use the fileResponse part)
+      files.value.unshift(response.data.fileResponse)
       
     } catch (error: any) {
       file.uploading = false
@@ -836,6 +864,149 @@ const loadFileTypes = async () => {
   } catch (error) {
     console.error('Failed to load file types:', error)
     fileTypes.value = []
+  }
+}
+
+// AI Analysis Functions
+const analyzeFileBeforeUpload = async (file: any) => {
+  try {
+    file.isAnalyzing = true
+    file.analysisError = null
+    
+    // Check analysis capability
+    const capability = await aiAnalysisApi.getAnalysisCapability(file.name, file.size)
+    if (capability === 'none') {
+      file.analysisError = 'File type not supported for AI analysis'
+      file.isAnalyzing = false
+      return
+    }
+    
+    // Set analysis type message
+    if (capability === 'metadata') {
+      file.analysisType = 'metadata-only'
+      file.analysisMessage = 'Large file - analyzing metadata only'
+    } else {
+      file.analysisType = 'full-content'
+      file.analysisMessage = 'Analyzing file content and metadata'
+    }
+    
+    // Call AI analysis API
+    const response = await aiAnalysisApi.analyzeFile(file.file, {
+      departmentId: file.metadata.departmentId ? Number(file.metadata.departmentId) : undefined,
+      projectId: file.metadata.projectId ? Number(file.metadata.projectId) : undefined,
+      description: file.metadata.description || undefined,
+      userDepartments: departments.value,
+      userProjects: projects.value,
+      availableFileTypes: fileTypes.value,
+      availableDepartmentCategories: departmentCategories.value
+    })
+    
+    if (response.success) {
+      file.aiSuggestions = response.data
+      console.log(`AI analysis completed for file: ${file.name} (${capability})`, response.data)
+    } else {
+      file.analysisError = 'AI analysis failed. Please try again.'
+    }
+  } catch (error: any) {
+    console.error('AI analysis error:', error)
+    file.analysisError = error.message || 'AI analysis failed. Please try again.'
+  } finally {
+    file.isAnalyzing = false
+  }
+}
+
+const applyAiSuggestion = (index: number, field: string, value: any) => {
+  const file = selectedFiles.value[index]
+  if (!file) return
+  
+  switch (field) {
+    case 'title':
+      file.metadata.title = value
+      break
+    case 'description':
+      file.metadata.description = value
+      break
+    case 'departmentId':
+      file.metadata.departmentId = value.toString()
+      // Load department categories when department changes
+      if (value) {
+        loadDepartmentCategories(value)
+      }
+      break
+    case 'projectId':
+      file.metadata.projectId = value.toString()
+      break
+    case 'tags':
+      file.metadata.tags = value
+      break
+    case 'fileTypeId':
+      file.metadata.fileTypeId = value.toString()
+      break
+    case 'departmentCategoryId':
+      file.metadata.departmentCategoryId = value.toString()
+      break
+    case 'visibility':
+      file.metadata.visibility = value
+      break
+  }
+}
+
+const applyDepartmentCategoryWithDepartment = (index: number, categoryId: number, departmentId: number) => {
+  const file = selectedFiles.value[index]
+  if (!file) return
+  
+  // Apply both department category and its parent department
+  file.metadata.departmentCategoryId = categoryId.toString()
+  file.metadata.departmentId = departmentId.toString()
+  
+  // Load department categories for the selected department
+  loadDepartmentCategories(departmentId)
+}
+
+const applyAllAiSuggestions = (index: number, suggestions: any) => {
+  const file = selectedFiles.value[index]
+  if (!file) return
+  
+  if (suggestions.title) {
+    file.metadata.title = suggestions.title
+  }
+  if (suggestions.description) {
+    file.metadata.description = suggestions.description
+  }
+  
+  // Handle department category with automatic department selection
+  if (suggestions.departmentCategoryId) {
+    file.metadata.departmentCategoryId = suggestions.departmentCategoryId.toString()
+    
+    // If a department ID is provided with the category, apply it
+    if (suggestions.departmentId) {
+      file.metadata.departmentId = suggestions.departmentId.toString()
+      loadDepartmentCategories(suggestions.departmentId)
+    } else {
+      // Find the department for this category
+      const category = departmentCategories.value.find(dc => dc.id === suggestions.departmentCategoryId)
+      if (category) {
+        file.metadata.departmentId = category.departmentId.toString()
+        loadDepartmentCategories(category.departmentId)
+      }
+    }
+  } else if (suggestions.departmentId) {
+    // Only apply department if no category was specified
+    file.metadata.departmentId = suggestions.departmentId.toString()
+    loadDepartmentCategories(suggestions.departmentId)
+  }
+  
+  if (suggestions.projectId) {
+    file.metadata.projectId = suggestions.projectId.toString()
+  }
+  if (suggestions.tags) {
+    file.metadata.tags = suggestions.tags
+  }
+  if (suggestions.fileTypeId) {
+    file.metadata.fileTypeId = suggestions.fileTypeId.toString()
+  }
+  if (suggestions.visibility) {
+    file.metadata.visibility = suggestions.visibility
   }
 }
 

@@ -1,10 +1,15 @@
 package com.duongdat.filehub.controller;
 
+import com.duongdat.filehub.dto.request.FileAnalysisRequest;
 import com.duongdat.filehub.dto.request.FileUploadRequest;
 import com.duongdat.filehub.dto.response.ApiResponse;
+import com.duongdat.filehub.dto.response.FileAnalysisResponse;
 import com.duongdat.filehub.dto.response.FileResponse;
+import com.duongdat.filehub.dto.response.FileUploadWithAnalysisResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
+import com.duongdat.filehub.service.FileContentExtractorService;
 import com.duongdat.filehub.service.FileService;
+import com.duongdat.filehub.service.GeminiAnalysisService;
 import com.duongdat.filehub.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +32,12 @@ public class FileController {
     
     private final FileService fileService;
     private final SecurityUtil securityUtil;
+    private final GeminiAnalysisService geminiAnalysisService;
+    private final FileContentExtractorService fileContentExtractorService;
     
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<FileResponse>> uploadFile(
+    public ResponseEntity<ApiResponse<FileUploadWithAnalysisResponse>> uploadFile(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
@@ -39,10 +46,11 @@ public class FileController {
             @RequestParam(value = "projectId", required = false) Long projectId,
             @RequestParam(value = "fileTypeId", required = false) Long fileTypeId,
             @RequestParam(value = "tags", required = false) String tags,
-            @RequestParam(value = "visibility", defaultValue = "PRIVATE") String visibility) {
+            @RequestParam(value = "visibility", defaultValue = "PRIVATE") String visibility,
+            @RequestParam(value = "enableAiAnalysis", defaultValue = "true") boolean enableAiAnalysis) {
         try {
-            log.debug("File upload request received - File: {}, Title: {}, Description: {}, DepartmentCategoryId: {}, DepartmentId: {}, ProjectId: {}, FileTypeId: {}, Tags: {}, Visibility: {}", 
-                      file != null ? file.getOriginalFilename() : "null", title, description, departmentCategoryId, departmentId, projectId, fileTypeId, tags, visibility);
+            log.debug("File upload request received - File: {}, Title: {}, Description: {}, DepartmentCategoryId: {}, DepartmentId: {}, ProjectId: {}, FileTypeId: {}, Tags: {}, Visibility: {}, EnableAiAnalysis: {}", 
+                      file != null ? file.getOriginalFilename() : "null", title, description, departmentCategoryId, departmentId, projectId, fileTypeId, tags, visibility, enableAiAnalysis);
             
             // Validate file parameter
             if (file == null || file.isEmpty()) {
@@ -65,7 +73,66 @@ public class FileController {
             log.debug("Processing file upload for user with request: {}", request);
             FileResponse fileResponse = fileService.uploadFile(file, request);
             log.info("File uploaded successfully - ID: {}, Filename: {}", fileResponse.getId(), fileResponse.getOriginalFilename());
-            return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", fileResponse));
+            
+            // Perform AI analysis if enabled
+            FileUploadWithAnalysisResponse uploadResponse;
+            if (enableAiAnalysis) {
+                try {
+                    String fileName = file.getOriginalFilename();
+                    if (fileName == null) {
+                        fileName = "unknown";
+                    }
+                    
+                    // Check if file can be analyzed
+                    if (geminiAnalysisService.canAnalyzeFile(fileName, file.getSize(), file.getContentType())) {
+                        // Determine analysis capability
+                        GeminiAnalysisService.AnalysisCapability capability = 
+                            geminiAnalysisService.getAnalysisCapability(fileName, file.getSize(), file.getContentType());
+                        
+                        // Extract content for small, supported files only
+                        String fileContent = "";
+                        if (capability == GeminiAnalysisService.AnalysisCapability.FULL_CONTENT && 
+                            fileContentExtractorService.isContentExtractable(fileName)) {
+                            fileContent = fileContentExtractorService.extractTextContent(file);
+                            log.debug("Extracted {} characters of content from file: {}", fileContent.length(), fileName);
+                        }
+                        
+                        // Create analysis request with enhanced metadata
+                        FileAnalysisRequest analysisRequest = new FileAnalysisRequest();
+                        analysisRequest.setFileName(fileName);
+                        analysisRequest.setFileContent(fileContent);
+                        analysisRequest.setContentType(file.getContentType());
+                        analysisRequest.setDepartmentId(departmentId);
+                        analysisRequest.setProjectId(projectId);
+                        analysisRequest.setDescription(description);
+                        analysisRequest.setFileSize(file.getSize());
+                        analysisRequest.setTitle(title); // Use the title from upload request
+                        
+                        // Analyze with Gemini AI
+                        FileAnalysisResponse analysisResponse = geminiAnalysisService.analyzeFile(analysisRequest);
+                        uploadResponse = FileUploadWithAnalysisResponse.withAnalysis(fileResponse, analysisResponse);
+                        
+                        if (capability == GeminiAnalysisService.AnalysisCapability.METADATA_ONLY) {
+                            log.info("AI analysis completed for large file using metadata only: {} ({})", 
+                                fileName, formatBytes(file.getSize()));
+                        } else {
+                            log.info("AI analysis completed for file with content: {}", fileName);
+                        }
+                    } else {
+                        uploadResponse = FileUploadWithAnalysisResponse.withoutAnalysis(fileResponse, 
+                                "File type not supported for AI analysis");
+                        log.debug("AI analysis skipped for file: {} - unsupported type", fileName);
+                    }
+                } catch (Exception aiException) {
+                    log.warn("AI analysis failed for file: {} - {}", file.getOriginalFilename(), aiException.getMessage());
+                    uploadResponse = FileUploadWithAnalysisResponse.withAnalysisError(fileResponse, aiException.getMessage());
+                }
+            } else {
+                uploadResponse = FileUploadWithAnalysisResponse.withoutAnalysis(fileResponse, "AI analysis disabled by user");
+                log.debug("AI analysis disabled for file: {}", file.getOriginalFilename());
+            }
+            
+            return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", uploadResponse));
         } catch (IOException e) {
             log.error("File upload failed due to IOException: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to upload file: " + e.getMessage()));
@@ -75,6 +142,77 @@ public class FileController {
         } catch (Exception e) {
             log.error("File upload failed due to unexpected error: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(ApiResponse.error("Unexpected error occurred: " + e.getMessage()));
+        }
+    }
+    
+    @PostMapping("/{fileId}/analyze")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<FileAnalysisResponse>> analyzeExistingFile(
+            @PathVariable Long fileId,
+            @RequestParam(value = "departmentId", required = false) Long departmentId,
+            @RequestParam(value = "projectId", required = false) Long projectId,
+            @RequestParam(value = "description", required = false) String description) {
+        try {
+            // Get file information
+            FileResponse fileResponse = fileService.getFileById(fileId)
+                    .orElseThrow(() -> new RuntimeException("File not found"));
+            
+            // Check if file can be analyzed
+            if (!geminiAnalysisService.canAnalyzeFile(fileResponse.getOriginalFilename(), 
+                    fileResponse.getFileSize(), fileResponse.getContentType())) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("File type not supported for AI analysis"));
+            }
+            
+            // Determine analysis capability
+            GeminiAnalysisService.AnalysisCapability capability = 
+                geminiAnalysisService.getAnalysisCapability(fileResponse.getOriginalFilename(), 
+                    fileResponse.getFileSize(), fileResponse.getContentType());
+            
+            // Get file content for analysis (only for small files)
+            String fileContent = "";
+            if (capability == GeminiAnalysisService.AnalysisCapability.FULL_CONTENT && 
+                fileContentExtractorService.isContentExtractable(fileResponse.getOriginalFilename())) {
+                try {
+                    byte[] fileData = fileService.downloadFile(fileId);
+                    // Create a temporary multipart file for content extraction
+                    fileContent = new String(fileData, "UTF-8");
+                    if (fileContent.length() > 50000) { // Limit content size
+                        fileContent = fileContent.substring(0, 50000) + "... [truncated]";
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to extract content from existing file: {} - {}", fileResponse.getOriginalFilename(), e.getMessage());
+                }
+            }
+            
+            // Create enhanced analysis request
+            FileAnalysisRequest analysisRequest = new FileAnalysisRequest();
+            analysisRequest.setFileName(fileResponse.getOriginalFilename());
+            analysisRequest.setFileContent(fileContent);
+            analysisRequest.setContentType(fileResponse.getContentType());
+            analysisRequest.setDepartmentId(departmentId != null ? departmentId : fileResponse.getDepartmentId());
+            analysisRequest.setProjectId(projectId != null ? projectId : fileResponse.getProjectId());
+            analysisRequest.setDescription(description != null ? description : fileResponse.getDescription());
+            analysisRequest.setFileSize(fileResponse.getFileSize());
+            analysisRequest.setTitle(fileResponse.getTitle());
+            
+            // Analyze with Gemini AI
+            FileAnalysisResponse analysisResponse = geminiAnalysisService.analyzeFile(analysisRequest);
+            
+            if (capability == GeminiAnalysisService.AnalysisCapability.METADATA_ONLY) {
+                log.info("AI analysis completed for large existing file using metadata only: {} (ID: {}, {})", 
+                    fileResponse.getOriginalFilename(), fileId, formatBytes(fileResponse.getFileSize()));
+            } else {
+                log.info("AI analysis completed for existing file with content: {} (ID: {})", 
+                    fileResponse.getOriginalFilename(), fileId);
+            }
+            
+            return ResponseEntity.ok(ApiResponse.success("File analyzed successfully", analysisResponse));
+            
+        } catch (Exception e) {
+            log.error("Error analyzing existing file {}: {}", fileId, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to analyze file: " + e.getMessage()));
         }
     }
     
@@ -290,6 +428,13 @@ public class FileController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+    
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
     
     private boolean isPreviewableType(String contentType) {
