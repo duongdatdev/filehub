@@ -13,8 +13,11 @@ public class GeminiProperties {
     private Api api = new Api();
     private boolean enabled = true;
     private Model model = new Model();
-    private long maxFileSize = 10485760; // 10MB
-    private String supportedFormats = "txt,pdf,doc,docx,md,json,xml,csv";
+    private long maxFileSize = 2147483648L; // 2GB (effectively no limit for Files API)
+    private String supportedFormats = "txt,pdf,doc,docx,md,json,xml,csv,jpg,jpeg,png,gif,bmp,webp,mp4,mov,avi,mp3,wav,ogg";
+    private int maxContentLength = 500000; // 500KB (increased for better analysis)
+    private int maxOutputTokens = 8192; // Increased for more detailed responses
+    private double temperature = 0.3; // AI creativity/randomness level
     
     public static class Api {
         private String key;
@@ -84,5 +87,29 @@ public class GeminiProperties {
     
     public List<String> getSupportedFormatsList() {
         return Arrays.asList(supportedFormats.split(","));
+    }
+
+    public int getMaxContentLength() {
+        return maxContentLength;
+    }
+
+    public void setMaxContentLength(int maxContentLength) {
+        this.maxContentLength = maxContentLength;
+    }
+
+    public int getMaxOutputTokens() {
+        return maxOutputTokens;
+    }
+
+    public void setMaxOutputTokens(int maxOutputTokens) {
+        this.maxOutputTokens = maxOutputTokens;
+    }
+
+    public double getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(double temperature) {
+        this.temperature = temperature;
     }
 }

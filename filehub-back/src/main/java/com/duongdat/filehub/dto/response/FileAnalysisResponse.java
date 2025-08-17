@@ -46,6 +46,7 @@ public class FileAnalysisResponse {
         private String estimatedImportance; // LOW, MEDIUM, HIGH
         private List<String> suggestedAccess;
         private List<String> relatedKeywords;
+        private String analysisMethod; // files_api_analysis, metadata_only
     }
     
     public static FileAnalysisResponse createDefault(String fileName) {

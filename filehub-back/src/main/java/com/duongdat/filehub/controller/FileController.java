@@ -7,7 +7,6 @@ import com.duongdat.filehub.dto.response.FileAnalysisResponse;
 import com.duongdat.filehub.dto.response.FileResponse;
 import com.duongdat.filehub.dto.response.FileUploadWithAnalysisResponse;
 import com.duongdat.filehub.dto.response.PageResponse;
-import com.duongdat.filehub.service.FileContentExtractorService;
 import com.duongdat.filehub.service.FileService;
 import com.duongdat.filehub.service.GeminiAnalysisService;
 import com.duongdat.filehub.util.SecurityUtil;
@@ -33,7 +32,6 @@ public class FileController {
     private final FileService fileService;
     private final SecurityUtil securityUtil;
     private final GeminiAnalysisService geminiAnalysisService;
-    private final FileContentExtractorService fileContentExtractorService;
     
     @PostMapping(value = "/upload", consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
@@ -89,24 +87,32 @@ public class FileController {
                         GeminiAnalysisService.AnalysisCapability capability = 
                             geminiAnalysisService.getAnalysisCapability(fileName, file.getSize(), file.getContentType());
                         
-                        // Extract content for small, supported files only
-                        String fileContent = "";
-                        if (capability == GeminiAnalysisService.AnalysisCapability.FULL_CONTENT && 
-                            fileContentExtractorService.isContentExtractable(fileName)) {
-                            fileContent = fileContentExtractorService.extractTextContent(file);
-                            log.debug("Extracted {} characters of content from file: {}", fileContent.length(), fileName);
+                        // Get file data for Files API analysis
+                        byte[] fileData = null;
+                        
+                        try {
+                            // Always get file data for Gemini Files API analysis
+                            fileData = file.getBytes();
+                            log.info("File data prepared for analysis: {} bytes for file {}", fileData.length, fileName);
+                        } catch (Exception e) {
+                            log.warn("Failed to get file data for analysis: {} - {}", fileName, e.getMessage());
                         }
                         
-                        // Create analysis request with enhanced metadata
+                        // Create analysis request with file data for Files API
                         FileAnalysisRequest analysisRequest = new FileAnalysisRequest();
                         analysisRequest.setFileName(fileName);
-                        analysisRequest.setFileContent(fileContent);
+                        analysisRequest.setFileData(fileData);  // Files API will handle content extraction
                         analysisRequest.setContentType(file.getContentType());
                         analysisRequest.setDepartmentId(departmentId);
                         analysisRequest.setProjectId(projectId);
                         analysisRequest.setDescription(description);
                         analysisRequest.setFileSize(file.getSize());
                         analysisRequest.setTitle(title); // Use the title from upload request
+                        analysisRequest.setFileData(fileData); // Add file data for binary analysis
+                        
+                        log.info("Analysis request for file {}: hasFileData={}, fileDataLength={}, fileSize={}", 
+                            fileName, fileData != null, 
+                            fileData != null ? fileData.length : 0, file.getSize());
                         
                         // Analyze with Gemini AI
                         FileAnalysisResponse analysisResponse = geminiAnalysisService.analyzeFile(analysisRequest);
@@ -169,32 +175,28 @@ public class FileController {
                 geminiAnalysisService.getAnalysisCapability(fileResponse.getOriginalFilename(), 
                     fileResponse.getFileSize(), fileResponse.getContentType());
             
-            // Get file content for analysis (only for small files)
-            String fileContent = "";
-            if (capability == GeminiAnalysisService.AnalysisCapability.FULL_CONTENT && 
-                fileContentExtractorService.isContentExtractable(fileResponse.getOriginalFilename())) {
-                try {
-                    byte[] fileData = fileService.downloadFile(fileId);
-                    // Create a temporary multipart file for content extraction
-                    fileContent = new String(fileData, "UTF-8");
-                    if (fileContent.length() > 50000) { // Limit content size
-                        fileContent = fileContent.substring(0, 50000) + "... [truncated]";
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to extract content from existing file: {} - {}", fileResponse.getOriginalFilename(), e.getMessage());
-                }
+            // Get file data for analysis
+            byte[] fileData = null;
+            
+            try {
+                // Get file data for Gemini Files API analysis
+                fileData = fileService.downloadFile(fileId);
+                log.info("File data prepared for analysis: {} bytes for file {}", fileData.length, fileResponse.getOriginalFilename());
+            } catch (Exception e) {
+                log.warn("Failed to download file data for analysis: {} - {}", fileResponse.getOriginalFilename(), e.getMessage());
             }
             
             // Create enhanced analysis request
             FileAnalysisRequest analysisRequest = new FileAnalysisRequest();
             analysisRequest.setFileName(fileResponse.getOriginalFilename());
-            analysisRequest.setFileContent(fileContent);
+            analysisRequest.setFileData(fileData);  // Files API will handle content analysis
             analysisRequest.setContentType(fileResponse.getContentType());
             analysisRequest.setDepartmentId(departmentId != null ? departmentId : fileResponse.getDepartmentId());
             analysisRequest.setProjectId(projectId != null ? projectId : fileResponse.getProjectId());
             analysisRequest.setDescription(description != null ? description : fileResponse.getDescription());
             analysisRequest.setFileSize(fileResponse.getFileSize());
             analysisRequest.setTitle(fileResponse.getTitle());
+            analysisRequest.setFileData(fileData); // Add file data for binary analysis
             
             // Analyze with Gemini AI
             FileAnalysisResponse analysisResponse = geminiAnalysisService.analyzeFile(analysisRequest);

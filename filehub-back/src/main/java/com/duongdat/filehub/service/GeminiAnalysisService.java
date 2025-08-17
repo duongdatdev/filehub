@@ -19,7 +19,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.time.Duration;
 
 import java.util.*;
@@ -34,6 +36,7 @@ public class GeminiAnalysisService {
     private final ProjectRepository projectRepository;
     private final FileTypeRepository fileTypeRepository;
     private final DepartmentCategoryRepository departmentCategoryRepository;
+    private final FileContentExtractorService fileContentExtractorService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
     
@@ -42,53 +45,131 @@ public class GeminiAnalysisService {
                                 ProjectRepository projectRepository,
                                 FileTypeRepository fileTypeRepository,
                                 DepartmentCategoryRepository departmentCategoryRepository,
+                                FileContentExtractorService fileContentExtractorService,
                                 RestTemplateBuilder restTemplateBuilder) {
         this.geminiProperties = geminiProperties;
         this.departmentRepository = departmentRepository;
         this.projectRepository = projectRepository;
         this.fileTypeRepository = fileTypeRepository;
         this.departmentCategoryRepository = departmentCategoryRepository;
+        this.fileContentExtractorService = fileContentExtractorService;
         // Configure RestTemplate with timeouts for AI API calls
         this.restTemplate = restTemplateBuilder
-                .setConnectTimeout(Duration.ofSeconds(30))
-                .setReadTimeout(Duration.ofSeconds(120)) // 2 minutes for AI processing
+                .connectTimeout(Duration.ofSeconds(30))
+                .readTimeout(Duration.ofSeconds(120)) // 2 minutes for AI processing
                 .build();
     }
     
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
+    private static final String GEMINI_FILES_API_URL = "https://generativelanguage.googleapis.com/v1beta/files";
     
     public FileAnalysisResponse analyzeFile(FileAnalysisRequest request) {
         if (!geminiProperties.isEnabled()) {
             log.info("Gemini AI is disabled, returning default analysis");
             return FileAnalysisResponse.createDefault(request.getFileName());
         }
-        
+
         try {
             String prompt = buildAnalysisPrompt(request);
-            String geminiResponse = callGeminiAPI(prompt);
-            return parseGeminiResponse(geminiResponse, request);
+            
+            // Check if file is DOCX or DOC and extract text content
+            String extractedTextContent = null;
+            byte[] fileDataToUpload = null;
+            boolean useFileUpload = false;
+            boolean useTextContent = false;
+            
+            if (request.getFileData() != null) {
+                // Check if it's a DOCX or DOC file that we should convert to text
+                String fileName = request.getFileName().toLowerCase();
+                boolean isWordDocument = fileName.endsWith(".docx") || fileName.endsWith(".doc");
+                
+                if (isWordDocument) {
+                    try {
+                        // Extract text content directly from byte array
+                        extractedTextContent = extractTextFromWordDocument(
+                            request.getFileData(), 
+                            request.getFileName(),
+                            request.getContentType()
+                        );
+                        
+                        if (extractedTextContent != null && !extractedTextContent.trim().isEmpty()) {
+                            useTextContent = true;
+                            log.info("Extracted text content from {} ({} characters)", 
+                                request.getFileName(), extractedTextContent.length());
+                        } else {
+                            log.warn("Failed to extract text content from {}, falling back to binary file upload", 
+                                request.getFileName());
+                        }
+                    } catch (Exception e) {
+                        log.error("Error extracting text from {}: {}", request.getFileName(), e.getMessage());
+                        log.info("Falling back to binary file upload for {}", request.getFileName());
+                    }
+                }
+                
+                // If text extraction failed or not a Word document, use original approach
+                if (!useTextContent) {
+                    if (isMimeTypeSupported(request.getContentType())) {
+                        fileDataToUpload = request.getFileData();
+                        useFileUpload = true;
+                        log.info("Using Gemini Files API for file analysis: {} (MIME: {})", 
+                            request.getFileName(), request.getContentType());
+                    } else {
+                        log.info("File '{}' with MIME type '{}' not supported for content analysis. Using metadata-only analysis.", 
+                            request.getFileName(), request.getContentType());
+                    }
+                }
+            } else {
+                log.info("No file data provided for '{}'. Using metadata-only analysis.", request.getFileName());
+            }
+            
+            String geminiResponse;
+            if (useTextContent) {
+                // Send text content instead of binary file
+                geminiResponse = callGeminiAPIWithTextContent(prompt, extractedTextContent);
+                log.info("Analysis completed for '{}' using text content extraction", request.getFileName());
+            } else {
+                // Use original approach with binary file upload or metadata-only
+                geminiResponse = callGeminiAPI(prompt, fileDataToUpload, request.getContentType());
+            }
+            
+            FileAnalysisResponse response = parseGeminiResponse(geminiResponse, request);
+            
+            // Add analysis method indicator and log the method used
+            if (response.getContentAnalysis() != null) {
+                String analysisMethod;
+                if (useTextContent) {
+                    analysisMethod = "text_content_analysis";
+                } else if (useFileUpload) {
+                    analysisMethod = "files_api_analysis";
+                } else {
+                    analysisMethod = "metadata_only";
+                }
+                response.getContentAnalysis().setAnalysisMethod(analysisMethod);
+                log.info("Analysis completed for '{}' using method: {}", request.getFileName(), analysisMethod);
+            }
+            
+            return response;
             
         } catch (Exception e) {
             log.error("Error analyzing file with Gemini AI: {}", e.getMessage(), e);
             return FileAnalysisResponse.createDefault(request.getFileName());
         }
-    }
-    
-    private String buildAnalysisPrompt(FileAnalysisRequest request) {
+    }    private String buildAnalysisPrompt(FileAnalysisRequest request) {
         StringBuilder prompt = new StringBuilder();
         
         // Get department and project context
         String departmentContext = getDepartmentContext(request.getDepartmentId());
         String projectContext = getProjectContext(request.getProjectId());
         
-        // Determine analysis approach based on file size
-        boolean isLargeFile = request.getFileSize() != null && request.getFileSize() > geminiProperties.getMaxFileSize();
-        boolean hasContent = request.getFileContent() != null && !request.getFileContent().trim().isEmpty();
+        // Determine analysis method based on file data availability and MIME type support
+        boolean useFileUpload = request.getFileData() != null && isMimeTypeSupported(request.getContentType());
         
-        if (isLargeFile) {
-            prompt.append("Analyze the following large file using metadata only (content analysis not available due to file size):\n\n");
-        } else if (hasContent) {
-            prompt.append("Analyze the following file using both metadata and content:\n\n");
+        if (useFileUpload) {
+            prompt.append("IMPORTANT: I have uploaded a file for you to analyze. You MUST read and analyze the ACTUAL CONTENT of the uploaded file, not just the filename or metadata.\n\n");
+            prompt.append("Analyze the following file using the uploaded file content. Please read the file content and provide analysis based on what you actually see/read inside the file:\n\n");
+        } else if (request.getFileData() != null) {
+            prompt.append("IMPORTANT: This file type (MIME: ").append(request.getContentType()).append(") is not supported for content analysis by Gemini API.\n");
+            prompt.append("Analyzing based on available metadata only (filename, file type, size, description):\n\n");
         } else {
             prompt.append("Analyze the following file using available metadata:\n\n");
         }
@@ -119,12 +200,14 @@ public class GeminiAnalysisService {
             prompt.append("File Description: ").append(request.getDescription()).append("\n");
         }
         
-        // Include content for small files only
-        if (!isLargeFile && hasContent) {
-            prompt.append("File Content:\n").append(request.getFileContent()).append("\n");
-        } else if (isLargeFile) {
-            prompt.append("\nNote: This is a large file (").append(formatFileSize(request.getFileSize()))
-                  .append("). Analysis is based on metadata, filename, title, and description only.\n");
+        // Note about file analysis approach
+        if (useFileUpload) {
+            prompt.append("\nIMPORTANT: A file has been uploaded to Gemini Files API for analysis. Please analyze the actual content of the uploaded file, not just the metadata.\n");
+            prompt.append("Read and analyze the file content thoroughly to provide accurate insights based on what you actually see in the file.\n");
+        } else if (request.getFileData() != null) {
+            prompt.append("\nNOTE: File content analysis is not available for this file type. Analysis is based on metadata only.\n");
+            prompt.append("The MIME type '").append(request.getContentType()).append("' is not supported by Gemini API for content analysis.\n");
+            prompt.append("Supported formats include: images (jpg, png, gif, webp), videos (mp4, mov, avi, etc.), audio (wav, mp3, etc.), text files, and PDFs.\n");
         }
         
         prompt.append("\nPlease provide a JSON response with the following structure:\n");
@@ -153,7 +236,7 @@ public class GeminiAnalysisService {
         prompt.append("    \"estimatedImportance\": \"LOW/MEDIUM/HIGH\",\n");
         prompt.append("    \"suggestedAccess\": [\"roles\", \"who\", \"should\", \"access\"],\n");
         prompt.append("    \"relatedKeywords\": [\"contextual\", \"keywords\"],\n");
-        prompt.append("    \"analysisMethod\": \"").append(isLargeFile ? "metadata_only" : (hasContent ? "content_and_metadata" : "metadata_only")).append("\"\n");
+        prompt.append("    \"analysisMethod\": \"").append(useFileUpload ? "files_api_analysis" : "metadata_only").append("\"\n");
         prompt.append("  }\n");
         prompt.append("}\n\n");
         
@@ -189,23 +272,31 @@ public class GeminiAnalysisService {
         }
         
         prompt.append("\nAnalysis Guidelines:\n");
-        if (isLargeFile) {
-            prompt.append("- This is a large file, so base your analysis on filename, title, description, file type, and size\n");
-            prompt.append("- Infer content type and purpose from file extension and metadata\n");
-            prompt.append("- For document files (.docx, .pdf, etc.), suggest appropriate business categories\n");
-            prompt.append("- For media files, focus on storage and access recommendations\n");
-            prompt.append("- Lower confidence scores are acceptable due to limited information\n");
-        } else if (hasContent) {
-            prompt.append("- Use both file content and metadata for comprehensive analysis\n");
-            prompt.append("- Extract key topics and themes from the actual content\n");
-            prompt.append("- Provide high confidence scores when content is clear\n");
+        if (useFileUpload) {
+            prompt.append("- CRITICAL: This file has been uploaded via Gemini Files API - you MUST analyze the ACTUAL file content\n");
+            prompt.append("- DO NOT just analyze the filename or metadata - READ THE ACTUAL FILE CONTENT\n");
+            prompt.append("- Read the file thoroughly and base your analysis on the actual content you see inside the file\n");
+            prompt.append("- For documents: extract and analyze the actual text, structure, and meaning from the document\n");
+            prompt.append("- For images: describe exactly what you see in the image, identify objects, text, scenes, or diagrams\n");
+            prompt.append("- For videos: analyze the visual content, scenes, actions, or any text visible in the video\n");
+            prompt.append("- For audio: analyze speech content, music, or other audio characteristics you hear\n");
+            prompt.append("- Your analysis MUST reflect the ACTUAL content of the uploaded file, not just the filename\n");
+            prompt.append("- Provide specific insights based on what you actually read/see/hear in the file\n");
+            prompt.append("- Use high confidence scores when you can clearly read/see the file content\n");
+            prompt.append("- If you cannot access the file content, explicitly state this in your response\n");
+        } else if (request.getFileData() != null) {
+            prompt.append("- IMPORTANT: File content analysis is NOT available for this file type (").append(request.getContentType()).append(")\n");
+            prompt.append("- Analysis is based ONLY on metadata: filename, file type, size, and provided description\n");
+            prompt.append("- Make reasonable inferences based on filename patterns and file type\n");
+            prompt.append("- Use moderate confidence scores (0.3-0.6) since analysis is metadata-only\n");
+            prompt.append("- Clearly indicate in summary that analysis is based on metadata only\n");
         } else {
             prompt.append("- Base analysis on available metadata (filename, title, description)\n");
             prompt.append("- Make reasonable inferences about content based on file type\n");
         }
         
         prompt.append("- When suggesting a department category, make sure it belongs to the suggested department\n");
-        prompt.append("- For visibility: PRIVATE for sensitive/personal content, DEPARTMENT for team sharing, PUBLIC for general access\n");
+        prompt.append("- For visibility: PRIVATE for sensitive/personal content, SHARED for team sharing, PUBLIC for general access\n");
         prompt.append("- For priority: HIGH for urgent/critical documents, MEDIUM for normal business documents, LOW for reference materials\n");
         
         return prompt.toString();
@@ -229,7 +320,7 @@ public class GeminiAnalysisService {
                 .orElse(null);
     }
     
-    private String callGeminiAPI(String prompt) {
+    private String callGeminiAPI(String prompt, byte[] fileData, String contentType) {
         int maxRetries = 3;
         int attempt = 0;
         
@@ -243,16 +334,57 @@ public class GeminiAnalysisService {
                 
                 Map<String, Object> requestBody = new HashMap<>();
                 Map<String, Object> content = new HashMap<>();
-                Map<String, String> part = new HashMap<>();
-                part.put("text", prompt);
-                content.put("parts", List.of(part));
+                List<Map<String, Object>> parts = new ArrayList<>();
+                
+                // Add text part
+                Map<String, Object> textPart = new HashMap<>();
+                textPart.put("text", prompt);
+                parts.add(textPart);
+                
+                // Always upload file to Files API if file data is available
+                if (fileData != null) {
+                    try {
+                        String fileUri = uploadFileToGeminiAPI(fileData, contentType);
+                        if (fileUri != null) {
+                            // Add file part with correct structure for Gemini API
+                            Map<String, Object> filePart = new HashMap<>();
+                            Map<String, String> fileDataMap = new HashMap<>();
+                            fileDataMap.put("file_uri", fileUri);  // Use correct field name
+                            filePart.put("file_data", fileDataMap);  // Use correct field name
+                            parts.add(filePart);
+                            
+                            log.info("Added file reference to Gemini request: {}", fileUri);
+                            log.debug("File part structure: {}", filePart);
+                        } else {
+                            log.warn("File upload returned null URI, continuing with metadata-only analysis");
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to upload file to Gemini Files API: {}", e.getMessage(), e);
+                        log.warn("Continuing with metadata-only analysis due to upload failure");
+                        
+                        // Check if this is a MIME type error
+                        if (e.getMessage() != null && e.getMessage().contains("mimeType parameter")) {
+                            log.info("MIME type '{}' is not supported by Gemini API. This file type cannot be analyzed for content.", contentType);
+                        }
+                    }
+                }
+                
+                content.put("parts", parts);
                 requestBody.put("contents", List.of(content));
                 
-                // Add generation config for better JSON responses
+                // Add generation config for better JSON responses with increased limits
                 Map<String, Object> generationConfig = new HashMap<>();
-                generationConfig.put("temperature", 0.3);
-                generationConfig.put("maxOutputTokens", 2048);
+                generationConfig.put("temperature", geminiProperties.getTemperature());
+                generationConfig.put("maxOutputTokens", geminiProperties.getMaxOutputTokens());
                 requestBody.put("generationConfig", generationConfig);
+                
+                // Log request details for debugging
+                log.debug("Gemini API request URL: {}", url);
+                log.debug("Request body parts count: {}", parts.size());
+                log.debug("Has file data: {}", fileData != null);
+                if (log.isTraceEnabled()) {
+                    log.trace("Full request body: {}", requestBody);
+                }
                 
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
                 
@@ -292,6 +424,317 @@ public class GeminiAnalysisService {
         }
         
         return null;
+    }
+    
+    /**
+     * Call Gemini API with text content instead of binary file upload
+     */
+    private String callGeminiAPIWithTextContent(String prompt, String textContent) {
+        int maxRetries = 3;
+        int attempt = 0;
+        
+        while (attempt < maxRetries) {
+            try {
+                String url = GEMINI_API_URL.replace("{model}", geminiProperties.getModel().getName());
+                
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("x-goog-api-key", geminiProperties.getApi().getKey());
+                
+                Map<String, Object> requestBody = new HashMap<>();
+                Map<String, Object> content = new HashMap<>();
+                List<Map<String, Object>> parts = new ArrayList<>();
+                
+                // Add text part with extracted content
+                Map<String, Object> textPart = new HashMap<>();
+                String enhancedPrompt = prompt + "\n\nFile Content:\n" + textContent;
+                textPart.put("text", enhancedPrompt);
+                parts.add(textPart);
+                
+                content.put("parts", parts);
+                requestBody.put("contents", List.of(content));
+                
+                // Add generation config
+                Map<String, Object> generationConfig = new HashMap<>();
+                generationConfig.put("temperature", geminiProperties.getTemperature());
+                generationConfig.put("maxOutputTokens", geminiProperties.getMaxOutputTokens());
+                requestBody.put("generationConfig", generationConfig);
+                
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+                
+                ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                
+                if (response.getStatusCode() == HttpStatus.OK) {
+                    return response.getBody();
+                } else {
+                    log.error("Gemini API returned status: {}", response.getStatusCode());
+                    return null;
+                }
+                
+            } catch (HttpServerErrorException.ServiceUnavailable e) {
+                attempt++;
+                log.warn("Gemini API is overloaded (attempt {}/{}): {}", attempt, maxRetries, e.getMessage());
+                
+                if (attempt >= maxRetries) {
+                    log.error("Gemini API unavailable after {} attempts. Service may be temporarily overloaded.", maxRetries);
+                    return null;
+                }
+                
+                try {
+                    long waitTime = (long) Math.pow(2, attempt - 1) * 1000;
+                    log.info("Waiting {}ms before retry...", waitTime);
+                    Thread.sleep(waitTime);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.error("Retry interrupted");
+                    return null;
+                }
+                
+            } catch (Exception e) {
+                log.error("Error calling Gemini API with text content: {}", e.getMessage(), e);
+                return null;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extract text content from Word documents (DOC/DOCX)
+     */
+    private String extractTextFromWordDocument(byte[] fileData, String fileName, String contentType) {
+        try {
+            // Create a simple MultipartFile implementation for FileContentExtractorService
+            SimpleMultipartFile tempFile = new SimpleMultipartFile(fileName, fileData, contentType);
+            return fileContentExtractorService.extractTextContent(tempFile);
+        } catch (Exception e) {
+            log.error("Error extracting text from Word document: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Simple MultipartFile implementation for internal use
+     */
+    private static class SimpleMultipartFile implements MultipartFile {
+        private final String name;
+        private final byte[] content;
+        private final String contentType;
+        
+        public SimpleMultipartFile(String name, byte[] content, String contentType) {
+            this.name = name;
+            this.content = content;
+            this.contentType = contentType;
+        }
+        
+        @Override
+        public String getName() { return "file"; }
+        
+        @Override
+        public String getOriginalFilename() { return name; }
+        
+        @Override
+        public String getContentType() { return contentType; }
+        
+        @Override
+        public boolean isEmpty() { return content.length == 0; }
+        
+        @Override
+        public long getSize() { return content.length; }
+        
+        @Override
+        public byte[] getBytes() { return content; }
+        
+        @Override
+        public java.io.InputStream getInputStream() {
+            return new ByteArrayInputStream(content);
+        }
+        
+        @Override
+        public void transferTo(java.io.File dest) throws java.io.IOException {
+            throw new UnsupportedOperationException("transferTo not supported");
+        }
+    }
+    
+    /**
+     * Upload file to Gemini Files API using the correct media upload approach
+     */
+    private String uploadFileToGeminiAPI(byte[] fileData, String contentType) {
+        try {
+            // Check if the content type is supported by Gemini
+            if (!isMimeTypeSupported(contentType)) {
+                log.warn("MIME type '{}' is not supported by Gemini API. Skipping file upload for content analysis.", contentType);
+                return null;
+            }
+            
+            // Use the correct media upload URL for Gemini Files API
+            String mediaUploadUrl = "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media&key=" + 
+                                   geminiProperties.getApi().getKey();
+            
+            HttpHeaders headers = new HttpHeaders();
+            // Use the provided content type, with fallback to octet-stream if null
+            String mimeType = (contentType != null && !contentType.isEmpty()) ? contentType : "application/octet-stream";
+            headers.set("Content-Type", mimeType);
+            headers.set("X-Goog-Upload-Protocol", "raw");
+            
+            HttpEntity<byte[]> entity = new HttpEntity<>(fileData, headers);
+            
+            log.debug("Uploading {} bytes to Gemini Files API using media upload with MIME type: {}", fileData.length, mimeType);
+            log.info("Attempting file upload with supported MIME type: {}", mimeType);
+            
+            ResponseEntity<String> response = restTemplate.exchange(
+                mediaUploadUrl, HttpMethod.POST, entity, String.class);
+            
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.debug("Media upload response: {}", response.getBody());
+                
+                try {
+                    JsonNode responseNode = objectMapper.readTree(response.getBody());
+                    // Check if response has "file" object structure (media upload response)
+                    JsonNode fileNode = responseNode.has("file") ? responseNode.get("file") : responseNode;
+                    String fileUri = fileNode.get("uri").asText();
+                    String displayName = fileNode.has("displayName") ? 
+                                       fileNode.get("displayName").asText() : "uploaded_file";
+                    String state = fileNode.has("state") ? 
+                                 fileNode.get("state").asText() : "ACTIVE";
+                    
+                    log.info("File uploaded successfully via media upload. URI: {}, Name: {}, State: {}", 
+                        fileUri, displayName, state);
+                    
+                    // Wait for processing if needed
+                    if ("PROCESSING".equals(state)) {
+                        log.info("File is processing, waiting...");
+                        try {
+                            for (int i = 0; i < 10; i++) { // Max 30 seconds
+                                Thread.sleep(3000);
+                                String currentState = checkFileStatus(fileUri);
+                                if ("ACTIVE".equals(currentState)) {
+                                    log.info("File processing completed");
+                                    break;
+                                }
+                                log.debug("Still processing... attempt {}", i + 1);
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                    
+                    return fileUri;
+                    
+                } catch (Exception e) {
+                    log.error("Error parsing media upload response: {} - Response: {}", 
+                        e.getMessage(), response.getBody());
+                }
+            } else {
+                log.error("Media upload failed. Status: {}, Body: {}", 
+                    response.getStatusCode(), response.getBody());
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            log.error("Error in media upload for MIME type '{}': {}", contentType, e.getMessage(), e);
+            
+            // Check if the error is specifically about unsupported MIME type
+            if (e.getMessage() != null && e.getMessage().contains("mimeType parameter")) {
+                log.warn("MIME type '{}' is not supported by Gemini API. Falling back to metadata-only analysis.", contentType);
+            }
+            
+            return null;
+        }
+    }
+    
+    /**
+     * Check if a MIME type is supported by Gemini API for file uploads
+     */
+    private boolean isMimeTypeSupported(String contentType) {
+        if (contentType == null || contentType.isEmpty()) {
+            return false;
+        }
+        
+        // List of supported MIME types based on Gemini documentation
+        Set<String> supportedMimeTypes = Set.of(
+            // Images
+            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp",
+            
+            // Audio
+            "audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg", "audio/flac",
+            
+            // Video
+            "video/mp4", "video/mpeg", "video/mov", "video/avi", "video/x-flv", 
+            "video/mpg", "video/webm", "video/wmv", "video/3gpp",
+            
+            // Text
+            "text/plain", "text/html", "text/css", "text/javascript", "text/markdown",
+            
+            // Documents (limited support)
+            "application/pdf",
+            
+            // Code files
+            "application/x-javascript", "application/json"
+        );
+        
+        // Check exact match first
+        if (supportedMimeTypes.contains(contentType.toLowerCase())) {
+            log.debug("MIME type '{}' is explicitly supported", contentType);
+            return true;
+        }
+        
+        // Check by category for broader support
+        String lowerContentType = contentType.toLowerCase();
+        if (lowerContentType.startsWith("image/") || 
+            lowerContentType.startsWith("audio/") || 
+            lowerContentType.startsWith("video/") ||
+            lowerContentType.startsWith("text/")) {
+            
+            log.debug("MIME type '{}' is supported by category", contentType);
+            return true;
+        }
+        
+        // Special handling for application types that might be supported
+        if (lowerContentType.equals("application/pdf")) {
+            log.debug("MIME type '{}' (PDF) is supported", contentType);
+            return true;
+        }
+        
+        log.debug("MIME type '{}' is not supported by Gemini API", contentType);
+        return false;
+    }
+    
+    private String checkFileStatus(String fileUri) {
+        try {
+            String fileUrl = "https://generativelanguage.googleapis.com/v1beta/files/" + 
+                           fileUri.substring(fileUri.lastIndexOf("/") + 1) + "?key=" + geminiProperties.getApi().getKey();
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            
+            HttpEntity<?> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<String> response = restTemplate.exchange(
+                fileUrl, HttpMethod.GET, entity, String.class);
+            
+            if (response.getStatusCode() == HttpStatus.OK) {
+                try {
+                    JsonNode responseNode = objectMapper.readTree(response.getBody());
+                    // Handle both direct response and wrapped response structures
+                    JsonNode fileNode = responseNode.has("file") ? responseNode.get("file") : responseNode;
+                    String state = fileNode.has("state") ? fileNode.get("state").asText() : "unknown";
+                    log.debug("File status check - URI: {}, State: {}", fileUri, state);
+                    return state;
+                } catch (Exception e) {
+                    log.error("Error parsing file status response: {}", e.getMessage());
+                    return "unknown";
+                }
+            } else {
+                log.error("Failed to check file status. Status: {}, Body: {}", 
+                    response.getStatusCode(), response.getBody());
+                return "error";
+            }
+        } catch (Exception e) {
+            log.error("Error checking file status: {}", e.getMessage(), e);
+            return "error";
+        }
     }
     
     private FileAnalysisResponse parseGeminiResponse(String response, FileAnalysisRequest request) {
@@ -490,7 +933,21 @@ public class GeminiAnalysisService {
         contentAnalysis.setEstimatedImportance("MEDIUM");
         contentAnalysis.setSuggestedAccess(List.of("team", "department"));
         contentAnalysis.setRelatedKeywords(tags.stream().limit(5).collect(Collectors.toList()));
+        
+        // Set analysis method based on whether we had file data
+        boolean hadFileData = request.getFileData() != null;
+        boolean supportedMimeType = hadFileData && isMimeTypeSupported(request.getContentType());
+        contentAnalysis.setAnalysisMethod(supportedMimeType ? "files_api_analysis" : "metadata_only");
+        
         analysis.setContentAnalysis(contentAnalysis);
+        
+        // Adjust confidence score and summary based on analysis method
+        if (!supportedMimeType && hadFileData) {
+            analysis.setConfidenceScore(0.4); // Lower confidence for metadata-only analysis
+            analysis.setSummary("Metadata-only analysis - file type not supported for content analysis. " + analysis.getSummary());
+        } else if (!hadFileData) {
+            analysis.setConfidenceScore(0.5); // Moderate confidence for no file data
+        }
         
         // Try to suggest file type based on content and filename
         suggestFileTypeFromContent(analysis, fileName, contentType);
@@ -662,14 +1119,14 @@ public class GeminiAnalysisService {
             return AnalysisCapability.NOT_SUPPORTED;
         }
         
-        if (fileSize > geminiProperties.getMaxFileSize()) {
+        // Check if MIME type is supported for content analysis
+        if (isMimeTypeSupported(contentType)) {
+            log.debug("File '{}' with MIME type '{}' supports full content analysis", fileName, contentType);
+            return AnalysisCapability.FULL_CONTENT;
+        } else {
+            log.debug("File '{}' with MIME type '{}' supports metadata-only analysis", fileName, contentType);
             return AnalysisCapability.METADATA_ONLY;
         }
-        
-        String extension = getFileExtension(fileName);
-        boolean isSupportedForContent = geminiProperties.getSupportedFormatsList().contains(extension.toLowerCase());
-        
-        return isSupportedForContent ? AnalysisCapability.FULL_CONTENT : AnalysisCapability.METADATA_ONLY;
     }
     
     public enum AnalysisCapability {

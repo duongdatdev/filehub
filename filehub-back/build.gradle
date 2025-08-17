@@ -71,6 +71,12 @@ dependencies {
     implementation 'com.google.http-client:google-http-client-jackson2:1.43.3'
     // JSON processing for Gemini API calls
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    // Apache POI for document content extraction (DOCX, XLSX, PPTX)
+    implementation 'org.apache.poi:poi:5.2.4'
+    implementation 'org.apache.poi:poi-ooxml:5.2.4'
+    implementation 'org.apache.poi:poi-scratchpad:5.2.4'
+    // PDF content extraction
+    implementation 'org.apache.pdfbox:pdfbox:3.0.1'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'com.mysql:mysql-connector-j'

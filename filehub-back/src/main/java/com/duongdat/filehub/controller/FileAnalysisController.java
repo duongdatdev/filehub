@@ -4,7 +4,6 @@ import com.duongdat.filehub.config.GeminiProperties;
 import com.duongdat.filehub.dto.request.FileAnalysisRequest;
 import com.duongdat.filehub.dto.response.ApiResponse;
 import com.duongdat.filehub.dto.response.FileAnalysisResponse;
-import com.duongdat.filehub.service.FileContentExtractorService;
 import com.duongdat.filehub.service.GeminiAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +19,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileAnalysisController {
     
     private final GeminiAnalysisService geminiAnalysisService;
-    private final FileContentExtractorService fileContentExtractorService;
     private final GeminiProperties geminiProperties;
     
     @PostMapping("/file")
@@ -43,23 +41,28 @@ public class FileAnalysisController {
                         .body(ApiResponse.error("Invalid file name"));
             }
             
-            // Extract content for small, supported files
-            String fileContent = "";
-            if (geminiAnalysisService.canAnalyzeFile(fileName, file.getSize(), file.getContentType()) &&
-                fileContentExtractorService.isContentExtractable(fileName)) {
-                
-                fileContent = fileContentExtractorService.extractTextContent(file);
-                log.debug("Extracted {} characters of content from file: {}", fileContent.length(), fileName);
+            // Get file data for Gemini Files API analysis
+            byte[] fileData = null;
+            
+            if (geminiAnalysisService.canAnalyzeFile(fileName, file.getSize(), file.getContentType())) {
+                try {
+                    // Get raw file data for Gemini Files API
+                    fileData = file.getBytes();
+                    log.debug("Prepared {} bytes of file data for analysis: {}", fileData.length, fileName);
+                } catch (Exception e) {
+                    log.warn("Failed to get file data for analysis: {} - {}", fileName, e.getMessage());
+                }
             }
             
             // Create analysis request
             FileAnalysisRequest request = new FileAnalysisRequest();
             request.setFileName(fileName);
-            request.setFileContent(fileContent);
             request.setContentType(file.getContentType());
             request.setDepartmentId(departmentId);
             request.setProjectId(projectId);
             request.setDescription(description);
+            request.setFileSize(file.getSize());
+            request.setFileData(fileData);
             
             // Analyze with Gemini AI
             FileAnalysisResponse analysis = geminiAnalysisService.analyzeFile(request);
