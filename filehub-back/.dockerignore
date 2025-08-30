@@ -1,0 +1,31 @@
+# File này để bỏ qua các file không cần thiết khi build Docker image
+
+# Gradle build artifacts
+build/
+.gradle/
+bin/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local uploads (sẽ được mount từ host)
+uploads/
+tokens/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Node modules nếu có
+node_modules/

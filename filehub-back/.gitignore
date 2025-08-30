@@ -39,8 +39,8 @@ out/
 ### Additional Spring Boot ###
 # Application properties (sensitive)
 **/application-*.properties
-!**/application.properties
-!**/application-test.properties
+**/application.properties
+**/application-test.properties
 
 #Google Cloud credentials
 google-drive-service-account.json
@@ -74,3 +74,4 @@ mvnw.cmd
 src/main/resources/credentials.json
 tokens/
 google-drive-service-account.json
+
