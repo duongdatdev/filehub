@@ -154,6 +154,32 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
+    async updateUserRole(id: number, role: 'USER' | 'ADMIN') {
+      this.loading = true
+      this.error = null
+
+      try {
+        const response = await adminApi.updateUserRole(id, role)
+        
+        if (response.success) {
+          // Update the user in the local state
+          const userIndex = this.users.findIndex(user => user.id === id)
+          if (userIndex !== -1) {
+            this.users[userIndex].role = role
+          }
+          return true
+        } else {
+          throw new Error(response.message || 'Failed to update user role')
+        }
+      } catch (error: any) {
+        this.error = error.message || 'An error occurred while updating user role'
+        console.error('Error updating user role:', error)
+        return false
+      } finally {
+        this.loading = false
+      }
+    },
+
     setPage(page: number) {
       this.filters.page = page
       this.fetchUsers()

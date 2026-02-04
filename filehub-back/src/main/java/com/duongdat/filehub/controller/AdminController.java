@@ -2,6 +2,7 @@ package com.duongdat.filehub.controller;
 
 import com.duongdat.filehub.dto.request.AdminUserFilterRequest;
 import com.duongdat.filehub.dto.request.UpdateUserStatusRequest;
+import com.duongdat.filehub.dto.request.UpdateUserRoleRequest;
 import com.duongdat.filehub.dto.request.UserAssignmentRequest;
 import com.duongdat.filehub.dto.request.BatchUserAssignmentRequest;
 import com.duongdat.filehub.dto.response.ApiResponse;
@@ -79,6 +80,18 @@ public class AdminController {
         try {
             UserResponse user = adminService.updateUserStatus(id, request.getIsActive());
             return ResponseEntity.ok(ApiResponse.success("User status updated successfully", user));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/users/{id}/role")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUserRole(
+            @PathVariable Long id, 
+            @Valid @RequestBody UpdateUserRoleRequest request) {
+        try {
+            UserResponse user = adminService.updateUserRole(id, request.getRole());
+            return ResponseEntity.ok(ApiResponse.success("User role updated successfully", user));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

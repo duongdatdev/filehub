@@ -2,10 +2,12 @@ package com.duongdat.filehub.controller;
 
 import com.duongdat.filehub.dto.request.BatchUserAssignmentRequest;
 import com.duongdat.filehub.dto.request.UserAssignmentRequest;
+import com.duongdat.filehub.dto.request.UpdateUserRoleRequest;
 import com.duongdat.filehub.dto.response.AdminUserDetailResponse;
 import com.duongdat.filehub.dto.response.UserResponse;
 import com.duongdat.filehub.dto.response.UserDepartmentSummary;
 import com.duongdat.filehub.dto.response.UserProjectSummary;
+import com.duongdat.filehub.entity.Role;
 import com.duongdat.filehub.service.AdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,27 @@ class AdminControllerUserManagementTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value(1));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void testUpdateUserRole() throws Exception {
+        UserResponse userResponse = new UserResponse(1L, "testuser", "test@example.com", 
+                "Test User", "ADMIN", true, LocalDateTime.now());
+
+        when(adminService.updateUserRole(eq(1L), eq(Role.ADMIN)))
+                .thenReturn(userResponse);
+
+        UpdateUserRoleRequest request = new UpdateUserRoleRequest(Role.ADMIN);
+
+        mockMvc.perform(patch("/api/admin/users/1/role")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.role").value("ADMIN"));
     }
 
     @Test

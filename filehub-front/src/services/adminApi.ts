@@ -27,6 +27,10 @@ export interface UpdateUserStatusRequest {
   isActive: boolean
 }
 
+export interface UpdateUserRoleRequest {
+  role: 'USER' | 'ADMIN'
+}
+
 export interface DashboardStats {
   totalUsers: number
   totalDepartments: number
@@ -167,6 +171,11 @@ class AdminApiService {
   async updateUserStatus(id: number, isActive: boolean): Promise<ApiResponse<User>> {
     const data: UpdateUserStatusRequest = { isActive }
     return apiService.patch<ApiResponse<User>>(`/admin/users/${id}/status`, data)
+  }
+
+  async updateUserRole(id: number, role: 'USER' | 'ADMIN'): Promise<ApiResponse<User>> {
+    const data: UpdateUserRoleRequest = { role }
+    return apiService.patch<ApiResponse<User>>(`/admin/users/${id}/role`, data)
   }
 
   // Department Management

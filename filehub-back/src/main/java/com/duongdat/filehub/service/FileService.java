@@ -64,6 +64,9 @@ public class FileService {
         Long userId = securityUtil.getCurrentUserId()
                 .orElseThrow(() -> new RuntimeException("User not authenticated"));
         
+        // Validate required fields before processing
+        validateUploadRequest(request);
+        
         // Validate upload permissions - NEW AUTHORIZATION LOGIC
         userAuthorizationService.validateFileUploadPermissions(request.getDepartmentId(), request.getProjectId());
         
@@ -604,5 +607,26 @@ public class FileService {
         response.setPreviewUrl("/api/files/" + file.getId() + "/preview");
         
         return response;
+    }
+    
+    /**
+     * Validate upload request to ensure required fields are provided
+     */
+    private void validateUploadRequest(FileUploadRequest request) {
+        if (request.getDepartmentId() == null) {
+            throw new RuntimeException("Department is required. Please select a department.");
+        }
+        
+        if (request.getFileTypeId() == null) {
+            throw new RuntimeException("File type is required. Please select a file type.");
+        }
+        
+        // Validate that visibility is a valid value
+        if (request.getVisibility() != null) {
+            String visibility = request.getVisibility().toUpperCase();
+            if (!visibility.equals("PRIVATE") && !visibility.equals("DEPARTMENT") && !visibility.equals("PUBLIC")) {
+                throw new RuntimeException("Invalid visibility value. Only PRIVATE, DEPARTMENT, or PUBLIC are accepted.");
+            }
+        }
     }
 }

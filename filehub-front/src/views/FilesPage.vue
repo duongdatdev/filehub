@@ -63,7 +63,7 @@
                 Supports: PDF, DOC, DOCX, TXT, JPG, PNG, MP4, ZIP and more
               </p>
               <p class="text-xs text-gray-400 mt-1">
-                Maximum file size: 100MB
+                Maximum file size: 2GB
               </p>
             </div>
           </div>
@@ -125,7 +125,7 @@
                       <input
                         v-model="file.metadata.title"
                         type="text"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         :placeholder="file.name"
                       />
                     </div>
@@ -136,7 +136,7 @@
                       </label>
                       <select
                         v-model="file.metadata.departmentCategoryId"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         :disabled="!file.metadata.departmentId"
                       >
                         <option value="">Select a category</option>
@@ -156,7 +156,7 @@
                       </label>
                       <select
                         v-model="file.metadata.fileTypeId"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                       >
                         <option value="">Select a file type</option>
                         <option
@@ -175,7 +175,7 @@
                       </label>
                       <select
                         v-model="file.metadata.departmentId"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                       >
                         <option value="">Select a department</option>
                         <option
@@ -194,7 +194,7 @@
                       </label>
                       <select
                         v-model="file.metadata.projectId"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         :disabled="!file.metadata.departmentId"
                       >
                         <option value="">Select a project</option>
@@ -215,7 +215,7 @@
                       <textarea
                         v-model="file.metadata.description"
                         rows="2"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         placeholder="Enter file description (optional)"
                       ></textarea>
                     </div>
@@ -226,7 +226,7 @@
                       </label>
                       <select
                         v-model="file.metadata.visibility"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                       >
                         <option value="PRIVATE">Private</option>
                         <option value="PUBLIC">Public</option>
@@ -241,7 +241,7 @@
                       <input
                         v-model="file.metadata.tags"
                         type="text"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        class="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                         placeholder="Tag1, Tag2, Tag3"
                       />
                     </div>
@@ -328,7 +328,7 @@
                   v-model="searchQuery"
                   type="text"
                   placeholder="Search files..."
-                  class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 />
                 <svg
                   class="absolute left-3 top-2.5 h-5 w-5 text-gray-400"

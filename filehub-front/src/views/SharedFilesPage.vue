@@ -778,6 +778,9 @@
       </div>
     </div>
   </div>
+
+  <!-- AI Chat Popup -->
+  <AiChatPopup />
 </template>
 
 <script setup lang="ts">
@@ -788,6 +791,7 @@ import projectApi, { type ProjectResponse } from '@/services/projectApi'
 import fileTypeApi, { type FileType as FileTypeResponse } from '@/services/fileTypeApi'
 import departmentCategoryApi, { type DepartmentCategory } from '@/services/departmentCategoryApi'
 import { useAuthStore } from '@/stores/auth'
+import AiChatPopup from '@/components/AiChatPopup.vue'
 
 const authStore = useAuthStore()
 

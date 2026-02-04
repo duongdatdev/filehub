@@ -267,6 +267,29 @@
                     {{ user.isActive ? 'Deactivate' : 'Activate' }}
                   </span>
                 </button>
+                <div class="relative">
+                  <select
+                    :value="user.role"
+                    @change="changeUserRole(user, ($event.target as HTMLSelectElement).value as 'USER' | 'ADMIN')"
+                    :disabled="updatingUserRoleId === user.id"
+                    :class="[
+                      'px-3 py-1 rounded text-xs font-medium transition-colors border-0 focus:ring-2 focus:ring-blue-500',
+                      user.role === 'ADMIN'
+                        ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                      updatingUserRoleId === user.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    ]"
+                  >
+                    <option value="USER">User</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <div v-if="updatingUserRoleId === user.id" class="absolute inset-0 flex items-center justify-center">
+                    <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                </div>
               </div>
             </td>
           </tr>
@@ -303,6 +326,7 @@ import type { User } from '@/services/api'
 
 const adminStore = useAdminStore()
 const updatingUserId = ref<number | null>(null)
+const updatingUserRoleId = ref<number | null>(null)
 const showAssignmentModal = ref(false)
 const selectedUserId = ref<number | null>(null)
 const showBulkAssignmentModal = ref(false)
@@ -355,6 +379,24 @@ const toggleUserStatus = async (user: User) => {
     console.error('Error updating user status:', error)
   } finally {
     updatingUserId.value = null
+  }
+}
+
+const changeUserRole = async (user: User, newRole: 'USER' | 'ADMIN') => {
+  if (updatingUserRoleId.value === user.id || user.role === newRole) return
+  
+  updatingUserRoleId.value = user.id
+  
+  try {
+    const success = await adminStore.updateUserRole(user.id, newRole)
+    if (!success) {
+      // Handle error - could show a toast notification
+      console.error('Failed to update user role')
+    }
+  } catch (error) {
+    console.error('Error updating user role:', error)
+  } finally {
+    updatingUserRoleId.value = null
   }
 }
 

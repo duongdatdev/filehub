@@ -97,6 +97,16 @@ public class AdminService {
         return mapToUserResponse(savedUser);
     }
 
+    public UserResponse updateUserRole(Long id, com.duongdat.filehub.entity.Role role) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        user.setRole(role);
+        User savedUser = userRepository.save(user);
+        
+        return mapToUserResponse(savedUser);
+    }
+
     private UserResponse mapToUserResponse(User user) {
         return new UserResponse(
             user.getId(),

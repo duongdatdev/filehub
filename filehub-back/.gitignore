@@ -73,5 +73,5 @@ mvnw.cmd
 # Google Drive OAuth2 credentials and tokens
 src/main/resources/credentials.json
 tokens/
-google-drive-service-account.json
+src/main/resources/google-drive-service-account.json
 
